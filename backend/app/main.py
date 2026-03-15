@@ -1,0 +1,50 @@
+"""Point d'entrée de l'API FastAPI."""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from .config import settings
+from .database import Base, engine
+from .routers import auth, teachers, subjects, rooms, classes, schedules
+
+# Créer les tables au démarrage (en prod on utilisera Alembic)
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title=settings.APP_TITLE,
+    version=settings.APP_VERSION,
+    description="API REST pour la génération automatique d'emplois du temps scolaires.",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# CORS — autorise le frontend React en dev
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Enregistrer les routers
+app.include_router(auth.router)
+app.include_router(teachers.router)
+app.include_router(subjects.router)
+app.include_router(rooms.router)
+app.include_router(classes.router)
+app.include_router(schedules.router)
+
+
+@app.get("/", tags=["Santé"])
+def racine():
+    return {
+        "message": "Plateforme Emploi du Temps Scolaire — API opérationnelle",
+        "version": settings.APP_VERSION,
+        "docs": "/docs",
+    }
+
+
+@app.get("/sante", tags=["Santé"])
+def sante():
+    return {"statut": "ok"}
