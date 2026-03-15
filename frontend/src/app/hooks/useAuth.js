@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import AuthContext from "app/contexts/FirebaseAuthContext";
+import AuthContext from "app/contexts/PlannerAuthContext";
 
 export default function useAuth() {
   const context = useContext(AuthContext);

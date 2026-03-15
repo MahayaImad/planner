@@ -20,5 +20,14 @@ export default defineConfig({
     alias: {
       app: path.resolve(__dirname, "src/app")
     }
+  },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, "")
+      }
+    }
   }
 });
