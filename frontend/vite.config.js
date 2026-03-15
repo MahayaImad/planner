@@ -10,7 +10,14 @@ export default defineConfig({
     VitePWA({
       injectRegister: "auto",
       registerType: "autoUpdate",
-      workbox: { clientsClaim: true, skipWaiting: true }
+      devOptions: { enabled: false }, // désactivé en dev (évite les conflits)
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+        // SPA routing : le SW sert toujours index.html pour les navigations
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [/^\/api/], // ne pas intercepter les appels API
+      }
     })
   ],
   build: {
