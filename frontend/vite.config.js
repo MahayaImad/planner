@@ -31,7 +31,9 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        // En Docker : VITE_API_TARGET=http://api:8000
+        // En local  : http://localhost:8000 (par défaut)
+        target: process.env.VITE_API_TARGET || "http://localhost:8000",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, "")
       }
