@@ -63,17 +63,7 @@ export const AuthProvider = ({ children }) => {
    * Appelé depuis la page register avec { ecole: {...}, admin: {...} }
    */
   const register = async ({ ecole, admin }) => {
-    const params = new URLSearchParams({
-      nom: admin.nom,
-      prenom: admin.prenom,
-      email: admin.email,
-      mot_de_passe: admin.mot_de_passe,
-      role: "admin",
-    });
-    const { data } = await axios.post(
-      `/api/auth/inscrire?${params.toString()}`,
-      ecole
-    );
+    const { data } = await axios.post("/api/auth/inscrire", { ecole, admin });
     setSession(data.access_token);
     dispatch({ type: "LOGIN", payload: { user: data.utilisateur } });
   };
