@@ -16,9 +16,9 @@ from typing import List, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Le programme officiel comporte du tamazight, que les fiches
-# enseignants fournies ne couvrent pas : compléter l'effectif pour
-# tester la génération sur le programme entier.
+# Le programme est désormais entièrement couvert par les enseignants
+# déclarés ; ce garde-fou reste actif au cas où une matière serait
+# ajoutée sans l'effectif correspondant.
 os.environ.setdefault("CEM_COMPLETER_EFFECTIF", "1")
 
 from solver import (  # noqa: E402

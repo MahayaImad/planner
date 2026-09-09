@@ -51,10 +51,15 @@ creneaux = grille.creneaux          # 5 × 7 − 3 = 32 créneaux ouverts
 #  MATIÈRES
 # ══════════════════════════════════════════════════════════════════
 
+# Le tamazight a été retiré du programme sur décision de
+# l'établissement : les fiches enseignants fournies ne comportaient
+# aucun professeur qualifié pour les 60 h hebdomadaires qu'il exigeait.
+# Pour le rétablir : remettre sa ligne ici et les quatre lignes de
+# niveau dans CURRICULUM_CSV, puis déclarer les enseignants
+# correspondants dans STAFF_CSV.
 MATIERES_CSV = """\
 code,nom
 ARABIC,اللغة العربية — Langue arabe
-AMAZIGH,اللغة الأمازيغية — Tamazight
 FRENCH,اللغة الفرنسية — Français
 ENGLISH,اللغة الإنجليزية — Anglais
 MATH,رياضيات — Mathématiques
@@ -150,7 +155,6 @@ for i, ligne in enumerate(csv.DictReader(io.StringIO(CLASSES_CSV)), start=1):
 CURRICULUM_CSV = """\
 Level,Subject_Code,Hrs_Cours,Cours_Block_Policy,Hrs_TD,TD_Delivery_Mode,Hrs_TP,TP_Delivery_Mode,Hrs_Practice,Practice_Block_Size,Required_Room_Type
 1AM,ARABIC,5,ONE_2H_BLOCK_REST_1H,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
-1AM,AMAZIGH,3,SINGLE_HOURS,0,NONE,0,NONE,0,0,classroom
 1AM,FRENCH,2,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 1AM,ENGLISH,3,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 1AM,MATH,4,ONE_2H_BLOCK_REST_1H,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
@@ -164,7 +168,6 @@ Level,Subject_Code,Hrs_Cours,Cours_Block_Policy,Hrs_TD,TD_Delivery_Mode,Hrs_TP,T
 1AM,PE,0,NONE,0,NONE,0,NONE,2,2,field
 1AM,INFO,0,NONE,0,NONE,1,FORTNIGHTLY_30M,0,0,it_room
 2AM,ARABIC,5,ONE_2H_BLOCK_REST_1H,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
-2AM,AMAZIGH,3,SINGLE_HOURS,0,NONE,0,NONE,0,0,classroom
 2AM,FRENCH,2,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 2AM,ENGLISH,3,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 2AM,MATH,4,ONE_2H_BLOCK_REST_1H,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
@@ -178,7 +181,6 @@ Level,Subject_Code,Hrs_Cours,Cours_Block_Policy,Hrs_TD,TD_Delivery_Mode,Hrs_TP,T
 2AM,PE,0,NONE,0,NONE,0,NONE,2,2,field
 2AM,INFO,0,NONE,0,NONE,1,FORTNIGHTLY_30M,0,0,it_room
 3AM,ARABIC,4,ONE_2H_BLOCK_REST_1H,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
-3AM,AMAZIGH,3,SINGLE_HOURS,0,NONE,0,NONE,0,0,classroom
 3AM,FRENCH,2,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 3AM,ENGLISH,3,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 3AM,MATH,4,ONE_2H_BLOCK_REST_1H,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
@@ -192,7 +194,6 @@ Level,Subject_Code,Hrs_Cours,Cours_Block_Policy,Hrs_TD,TD_Delivery_Mode,Hrs_TP,T
 3AM,PE,0,NONE,0,NONE,0,NONE,2,2,field
 3AM,INFO,0,NONE,0,NONE,1,FORTNIGHTLY_30M,0,0,it_room
 4AM,ARABIC,4,SINGLE_HOURS,2,WEEKLY_SWAP_2H,0,NONE,0,0,classroom
-4AM,AMAZIGH,3,SINGLE_HOURS,0,NONE,0,NONE,0,0,classroom
 4AM,FRENCH,2,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 4AM,ENGLISH,3,SINGLE_HOURS,1,FORTNIGHTLY_30M,0,NONE,0,0,classroom
 4AM,MATH,4,SINGLE_HOURS,2,WEEKLY_SWAP_2H,0,NONE,0,0,classroom
@@ -506,7 +507,10 @@ ponderations = Ponderations(
     heure_isolee_professeur=12,
     jours_presence_professeurs=3,
     recompense_permanence=4,
-    penalites_seance={4: 10, 5: 30, 6: 80},   # afternoon_dismissal_penalties
+    # Coût d'occupation par séance (index 0 = « slot 1 »).
+    # Démarrage à 08:00 pénalisé davantage que la 4ᵉ séance, et dernière
+    # séance de la journée pénalisée bien au-delà du reste.
+    penalites_seance={0: 20, 3: 8, 4: 10, 5: 30, 6: 150},
     equite_derniere_seance=25,
     seance_soumise_a_equite=6,
     equilibrage_charge_classes=4,
