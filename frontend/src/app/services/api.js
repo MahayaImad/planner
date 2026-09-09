@@ -75,6 +75,28 @@ export const classesApi = {
   supprimer: (id) => api.delete(`/classes/${id}`),
 };
 
+// ── Programme annuel ───────────────────────────────────────────────
+// Quelle classe suit quelle matière, avec quel enseignant. Enregistré
+// une fois pour l'année : la génération le reprend automatiquement.
+export const programmeApi = {
+  liste: () => api.get("/programme/"),
+  ajouter: (data) => api.post("/programme/", data),
+  modifier: (id, data) => api.put(`/programme/${id}`, data),
+  supprimer: (id) => api.delete(`/programme/${id}`),
+  vider: () => api.delete("/programme/"),
+  exporter: () => api.get("/programme/export", { responseType: "text" }),
+  modele: () => api.get("/programme/modele", { responseType: "text" }),
+  importer: (fichier, verifierSeulement = false) => {
+    const corps = new FormData();
+    corps.append("fichier", fichier);
+    return api.post(
+      `/programme/importer?verifier_seulement=${verifierSeulement}`,
+      corps,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+  },
+};
+
 // ── Réglages de planification ──────────────────────────────────────
 // Grille horaire, pondérations et présence minimale sont enregistrés par
 // établissement : la génération les reprend quand la requête ne les

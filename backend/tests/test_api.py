@@ -515,6 +515,136 @@ def test_fouj_deux_demi_groupes_au_meme_creneau():
         assert len(salles) == 2, f"{jour} {heure} : {salles}"
 
 
+# ══════════════════════════════════════════════════════════════════
+#  Programme annuel
+# ══════════════════════════════════════════════════════════════════
+
+def test_programme_persiste_et_alimente_la_generation():
+    """Le client ne doit plus envoyer les cours : ils sont en base."""
+    entetes, matieres, classes, profs, edt = _etablissement("prog-persiste")
+    demande = _demande(matieres, classes, profs)
+
+    for ligne in demande["cours_requis"]:
+        r = client.post("/programme/", json=ligne, headers=entetes)
+        assert r.status_code == 201, r.text
+
+    enregistre = client.get("/programme/", headers=entetes).json()
+    assert len(enregistre) == len(demande["cours_requis"])
+    assert enregistre[0]["classe_nom"] and enregistre[0]["professeur_nom"]
+
+    # Génération sans « cours_requis » : le programme enregistré est repris.
+    tache = client.post(f"/emplois-du-temps/{edt}/generer",
+                        json={"limite_secondes": 25}, headers=entetes)
+    assert tache.status_code == 202, tache.text
+    etat = _attendre(entetes, edt, tache.json()["id"], delai=90)
+    assert etat["statut"] == "terminee", etat["message"]
+    attendu = sum(c["heures_par_semaine"] for c in demande["cours_requis"])
+    assert etat["resultat"]["lecons_planifiees"] == attendu
+
+
+def test_generation_sans_programme_est_refusee():
+    entetes, _, _, _, edt = _etablissement("prog-vide")
+    client.delete("/programme/", headers=entetes)
+    r = client.post(f"/emplois-du-temps/{edt}/generer",
+                    json={"limite_secondes": 20}, headers=entetes)
+    assert r.status_code == 400
+    assert "programme" in str(r.json()["detail"]).lower()
+
+
+def test_import_csv_aller_retour_fidele():
+    entetes, matieres, classes, profs, edt = _etablissement("prog-csv")
+    for ligne in _demande(matieres, classes, profs)["cours_requis"]:
+        client.post("/programme/", json=ligne, headers=entetes)
+
+    exporte = client.get("/programme/export", headers=entetes).text
+    avant = client.get("/programme/", headers=entetes).json()
+
+    r = client.post("/programme/importer",
+                    files={"fichier": ("p.csv", exporte.encode(), "text/csv")},
+                    headers=entetes)
+    assert r.status_code == 200, r.text
+    apres = client.get("/programme/", headers=entetes).json()
+
+    cle = lambda l: (l["classe_nom"], l["matiere_nom"], l["professeur_nom"],
+                     l["heures_par_semaine"], l["nb_seances_doubles"])
+    assert sorted(map(cle, avant)) == sorted(map(cle, apres))
+
+
+def test_import_fautif_n_ecrit_rien():
+    """Un programme à moitié chargé serait pire qu'un import refusé."""
+    entetes, matieres, classes, profs, edt = _etablissement("prog-fautif")
+    for ligne in _demande(matieres, classes, profs)["cours_requis"][:3]:
+        client.post("/programme/", json=ligne, headers=entetes)
+    avant = client.get("/programme/", headers=entetes).json()
+
+    mauvais = (
+        "classe,matiere,professeur,heures\n"
+        f"{classes[0] and '1AM1'},Maths,PMaths0,4\n"
+        "ClasseInconnue,Maths,PMaths0,4\n"
+        "1AM1,MatiereInconnue,PMaths0,4\n"
+        "1AM1,Maths,PMaths0,zero\n"
+    )
+    r = client.post("/programme/importer",
+                    files={"fichier": ("m.csv", mauvais.encode(), "text/csv")},
+                    headers=entetes)
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert detail["erreurs_totales"] >= 3
+    assert any("inconnue" in m for m in detail["erreurs"])
+    # Rien n'a bougé.
+    assert client.get("/programme/", headers=entetes).json() == avant
+
+
+def test_import_csv_point_virgule_et_entete_anglais():
+    """Les tableurs francophones exportent en point-virgule."""
+    entetes, matieres, classes, profs, edt = _etablissement("prog-sep")
+    contenu = ("Class;Subject;Teacher;Hours;blocs_2h\n"
+               "1AM1;Maths;PMaths0;4;1\n"
+               "1AM1;Arabe;PArabe0;4;0\n")
+    r = client.post("/programme/importer",
+                    files={"fichier": ("s.csv", contenu.encode(), "text/csv")},
+                    headers=entetes)
+    assert r.status_code == 200, r.text
+    lignes = client.get("/programme/", headers=entetes).json()
+    assert len(lignes) == 2
+    assert {l["matiere_nom"] for l in lignes} == {"Maths", "Arabe"}
+
+
+def test_import_fouj_par_paires_seulement():
+    entetes, matieres, classes, profs, edt = _etablissement("prog-fouj-csv")
+    seul = ("classe,matiere,professeur,heures,fouj,groupe\n"
+            "1AM1,Maths,PMaths0,2,DEDOUBLE,G1\n")
+    r = client.post("/programme/importer",
+                    files={"fichier": ("f.csv", seul.encode(), "text/csv")},
+                    headers=entetes)
+    assert r.status_code == 422
+    assert "2" in str(r.json()["detail"]["erreurs"])
+
+    paire = ("classe,matiere,professeur,heures,fouj,groupe\n"
+             "1AM1,Maths,PMaths0,2,DEDOUBLE,G1\n"
+             "1AM1,Arabe,PArabe0,2,DEDOUBLE,G2\n")
+    r = client.post("/programme/importer",
+                    files={"fichier": ("f.csv", paire.encode(), "text/csv")},
+                    headers=entetes)
+    assert r.status_code == 200, r.text
+    lignes = client.get("/programme/", headers=entetes).json()
+    assert len({l["couplage_id"] for l in lignes}) == 1
+    assert {l["groupe"] for l in lignes} == {"G1", "G2"}
+
+    # Supprimer une moitié emporte l'autre : une moitié seule est invalide.
+    client.delete(f"/programme/{lignes[0]['id']}", headers=entetes)
+    assert client.get("/programme/", headers=entetes).json() == []
+
+
+def test_programme_cloisonne_entre_etablissements():
+    entetes_a, matieres, classes, profs, _ = _etablissement("prog-tenant-a")
+    entetes_b, *_ = _etablissement("prog-tenant-b")
+    client.post("/programme/", json=_demande(matieres, classes, profs)
+                ["cours_requis"][0], headers=entetes_a)
+    assert client.get("/programme/", headers=entetes_a).json()
+    assert client.get("/programme/", headers=entetes_b).json() == []
+
+
 if __name__ == "__main__":
     echecs = 0
     for nom, fonction in sorted(globals().items()):

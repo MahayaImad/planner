@@ -17,4 +17,5 @@ class Matiere(Base):
     ecole = relationship("Ecole", back_populates="matieres")
     professeurs = relationship("Professeur", secondary=professeur_matiere, back_populates="matieres")
     lecons = relationship("Lecon", back_populates="matiere")
-    fenetres = relationship("FenetrePedagogique", cascade="all, delete-orphan")
+    fenetres = relationship("FenetrePedagogique", back_populates="matiere",
+                            cascade="all, delete-orphan")

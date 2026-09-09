@@ -37,7 +37,8 @@ class GenererRequest(BaseModel):
     l'établissement : le client n'a normalement à envoyer que la liste
     des cours.
     """
-    cours_requis: List[CoursRequisInput]
+    # Absent : le programme annuel enregistré est repris tel quel.
+    cours_requis: Optional[List[CoursRequisInput]] = None
     grille: Optional[GrilleInput] = None
     fenetres_pedagogiques: Optional[List[FenetreInput]] = None
     ponderations: Optional[PonderationsInput] = None

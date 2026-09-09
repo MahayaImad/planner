@@ -265,9 +265,6 @@ export default function EdtDetail() {
       {genererOpen && (
         <GenererDialog
           edtId={id}
-          professeurs={professeurs}
-          matieres={matieres}
-          classes={classes}
           onClose={() => setGenererOpen(false)}
           onSuccess={() => { setGenererOpen(false); load(); enqueueSnackbar("Emploi du temps généré !", { variant: "success" }); }}
         />

@@ -6,6 +6,7 @@ const navigations = [
   { name: "Salles", path: "/salles", icon: "meeting_room" },
   { name: "Classes", path: "/classes", icon: "school" },
   { label: "PLANIFICATION", type: "label" },
+  { name: "Programme annuel", path: "/programme", icon: "list_alt" },
   { name: "Emplois du temps", path: "/emplois-du-temps", icon: "calendar_today" },
   { name: "Réglages", path: "/parametres", icon: "tune" },
 ];

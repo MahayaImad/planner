@@ -4,7 +4,7 @@ import secrets
 import warnings
 from typing import List
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Valeur historiquement présente dans le dépôt : elle ne doit jamais
 # servir en production, la connaître suffirait à forger des jetons.
@@ -33,8 +33,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # ── Dérivés ───────────────────────────────────────────────────
     @property

@@ -93,6 +93,9 @@ def effacer(db: Session, ecole_id: int) -> None:
     dernier. La suppression passe par l'ORM pour que les cascades
     déclarées sur les relations s'appliquent.
     """
+    from ..models.programme import LigneProgramme
+    db.query(LigneProgramme).filter(
+        LigneProgramme.ecole_id == ecole_id).delete()
     db.query(TacheGeneration).filter(
         TacheGeneration.ecole_id == ecole_id).delete()
     for edt in db.query(EmploiDuTemps).filter(
@@ -153,6 +156,24 @@ def charger(db: Session, ecole_id: int) -> Dict:
                 disponible=0))
         professeurs.append(ligne)
 
+    # Le programme annuel est écrit lui aussi : le jeu doit être prêt à
+    # générer, pas seulement à consulter.
+    from ..models.programme import LigneProgramme
+    par_nom = {m.nom: m for m in matieres.values()}
+    titulaire = {}
+    for prof in professeurs:
+        for matiere in prof.matieres:
+            titulaire.setdefault(matiere.nom, prof)
+    for classe in classes:
+        for nom, _, _, heures, doubles in MATIERES:
+            db.add(LigneProgramme(
+                ecole_id=ecole_id, classe_id=classe.id,
+                matiere_id=par_nom[nom].id,
+                professeur_id=titulaire[nom].id,
+                heures_par_semaine=heures, nb_seances_doubles=doubles,
+                max_heures_par_jour=2 if doubles else 1,
+            ))
+
     edt = EmploiDuTemps(ecole_id=ecole_id, nom="Semaine type — démonstration",
                         annee_scolaire="2025-2026",
                         notes="Créé par le jeu de démonstration.")
@@ -168,6 +189,7 @@ def charger(db: Session, ecole_id: int) -> Dict:
         "professeurs": len(professeurs),
         "indisponibilites": sum(len(p[3]) for p in PROFESSEURS),
         "heures_par_classe": sum(h for _, _, _, h, _ in MATIERES),
+        "lignes_programme": len(MATIERES) * len(classes),
         "lecons_a_placer": sum(h for _, _, _, h, _ in MATIERES) * len(classes),
     }
 

@@ -1,6 +1,9 @@
 /**
- * Dialogue de configuration des cours requis avant génération.
- * L'utilisateur définit : pour chaque (classe, matière, professeur) → nb d'heures/semaine
+ * Lancement d'une génération.
+ *
+ * Le programme annuel et les réglages sont enregistrés : le dialogue n'a
+ * plus qu'à les rappeler, vérifier leur cohérence et déclencher le
+ * calcul. Il ne redemande donc plus les quatre cents lignes de cours.
  */
 import { useState, useEffect, useRef } from "react";
 import Dialog from "@mui/material/Dialog";
@@ -10,70 +13,54 @@ import DialogActions from "@mui/material/DialogActions";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import MenuItem from "@mui/material/MenuItem";
 import TextField from "@mui/material/TextField";
-import IconButton from "@mui/material/IconButton";
 import Icon from "@mui/material/Icon";
+import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Alert from "@mui/material/Alert";
 import AlertTitle from "@mui/material/AlertTitle";
 import LinearProgress from "@mui/material/LinearProgress";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useSnackbar } from "notistack";
-import { edtApi, demoApi } from "app/services/api";
-import Tooltip from "@mui/material/Tooltip";
-
-const EMPTY_COURS = {
-  classe_id: "", matiere_id: "", professeur_id: "",
-  heures_par_semaine: 2, nb_seances_doubles: 0, max_heures_par_jour: 2,
-  // Fouj : deux lignes partageant un couplage_id sont enseignées en
-  // même temps à deux demi-groupes de la classe.
-  couplage_id: null, groupe: "",
-};
+import { useNavigate } from "react-router-dom";
+import { edtApi, programmeApi, parametresApi } from "app/services/api";
 
 const INTERVALLE_SUIVI = 1500; // ms entre deux interrogations de la tâche
 
-export default function GenererDialog({ edtId, professeurs, matieres, classes, onClose, onSuccess }) {
+export default function GenererDialog({ edtId, onClose, onSuccess }) {
   const { enqueueSnackbar } = useSnackbar();
-  const [cours, setCours] = useState([{ ...EMPTY_COURS }]);
+  const navigate = useNavigate();
+  const timerRef = useRef(null);
+
+  const [programme, setProgramme] = useState(null);
+  const [params, setParams] = useState(null);
   const [limiteSec, setLimiteSec] = useState(120);
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [erreursDonnees, setErreursDonnees] = useState([]);
   const [avertissements, setAvertissements] = useState([]);
   const [tache, setTache] = useState(null);
-  const timerRef = useRef(null);
 
-  // Arrêter le suivi si le dialogue est fermé pendant une génération :
-  // sans cela, l'intervalle continue de tourner sur un composant démonté.
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  useEffect(() => {
+    Promise.all([programmeApi.liste(), parametresApi.lire()])
+      .then(([p, r]) => {
+        setProgramme(p.data);
+        setParams(r.data);
+        setLimiteSec(r.data.limite_secondes);
+      })
+      .catch(() => setErreur("Impossible de lire le programme enregistré."));
+    // Arrêter le suivi si le dialogue est fermé pendant une génération.
+    return () => clearTimeout(timerRef.current);
+  }, []);
 
-  const construirePayload = () => ({
-    cours_requis: cours.map((c) => ({
-      classe_id: +c.classe_id,
-      matiere_id: +c.matiere_id,
-      professeur_id: +c.professeur_id,
-      heures_par_semaine: +c.heures_par_semaine,
-      nb_seances_doubles: +c.nb_seances_doubles || 0,
-      max_heures_par_jour: +c.max_heures_par_jour || 2,
-      couplage_id: c.couplage_id,
-      groupe: c.groupe,
-    })),
-    limite_secondes: +limiteSec,
-    // Grille, fenêtres pédagogiques et pondérations ne sont pas envoyées :
-    // la génération reprend les réglages enregistrés de l'établissement.
-  });
+  /** Le corps ne porte que le temps de calcul : le reste est en base. */
+  const corpsRequete = () => ({ limite_secondes: +limiteSec });
 
-  const champsManquants = () =>
-    cours.some((c) => !c.classe_id || !c.matiere_id || !c.professeur_id);
-
-  /** Contrôle des données sans lancer le calcul. */
   const handleDiagnostic = async () => {
     setErreur(null); setErreursDonnees([]); setAvertissements([]);
-    if (champsManquants()) { setErreur("Veuillez compléter tous les champs de chaque cours."); return; }
     setLoading(true);
     try {
-      const { data } = await edtApi.diagnostic(edtId, construirePayload());
+      const { data } = await edtApi.diagnostic(edtId, corpsRequete());
       setErreursDonnees(data.erreurs);
       setAvertissements(data.avertissements);
       if (data.realisable) {
@@ -82,12 +69,9 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
       }
     } catch (e) {
       setErreur(e.response?.data?.detail ?? "Erreur lors du contrôle des données");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  /** Interroge la tâche jusqu'à ce qu'elle soit terminée. */
   const suivre = async (tacheId) => {
     try {
       const { data } = await edtApi.tache(edtId, tacheId);
@@ -108,106 +92,17 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
         setErreur(data.message);
         setErreursDonnees(data.erreurs ?? []);
       }
-    } catch (e) {
+    } catch {
       setLoading(false);
       setErreur("Suivi de la génération interrompu.");
     }
   };
 
-  /**
-   * Reprend le programme du jeu de démonstration.
-   * Saisir quarante lignes à la main pour un simple essai découragerait
-   * quiconque veut seulement voir tourner le solveur.
-   */
-  const handleProgrammeDemo = async () => {
-    setErreur(null); setErreursDonnees([]);
-    setLoading(true);
-    try {
-      const { data } = await demoApi.programme();
-      setCours(data.map((c) => ({
-        classe_id: c.classe_id,
-        matiere_id: c.matiere_id,
-        professeur_id: c.professeur_id,
-        heures_par_semaine: c.heures_par_semaine,
-        nb_seances_doubles: c.nb_seances_doubles ?? 0,
-        max_heures_par_jour: c.max_heures_par_jour ?? 2,
-      })));
-      enqueueSnackbar(`${data.length} cours repris du jeu de démonstration`,
-        { variant: "success" });
-    } catch (e) {
-      setErreur(e.response?.data?.detail
-        ?? "Le programme de démonstration n'est pas disponible");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAnnuler = async () => {
-    if (!tache) return;
-    try { await edtApi.annulerTache(edtId, tache.id); } catch { /* déjà terminée */ }
-  };
-
-  const updateCours = (i, field, val) => {
-    setCours((prev) => prev.map((c, idx) => idx === i ? { ...c, [field]: val } : c));
-  };
-
-  const addCours = () => setCours((prev) => [...prev, { ...EMPTY_COURS }]);
-  const removeCours = (i) => setCours((prev) => prev.filter((_, idx) => idx !== i));
-
-  /**
-   * Fouj : la classe est dédoublée et les deux demi-groupes suivent
-   * DEUX cours différents au MÊME créneau, avec deux professeurs et
-   * deux salles. Apparier la ligne i avec la suivante crée le couple.
-   */
-  const apparier = (i) => {
-    setCours((prev) => {
-      const a = prev[i];
-      const suite = [...prev];
-      const identifiant = `fouj-${Date.now()}-${i}`;
-      const modele = {
-        ...EMPTY_COURS,
-        classe_id: a.classe_id,
-        heures_par_semaine: a.heures_par_semaine,
-        nb_seances_doubles: a.nb_seances_doubles,
-        max_heures_par_jour: a.max_heures_par_jour,
-        couplage_id: identifiant,
-        groupe: "G2",
-      };
-      suite[i] = { ...a, couplage_id: identifiant, groupe: "G1" };
-      suite.splice(i + 1, 0, modele);
-      return suite;
-    });
-  };
-
-  const detacher = (i) => {
-    setCours((prev) => {
-      const identifiant = prev[i].couplage_id;
-      return prev
-        .filter((c, idx) => !(idx !== i && c.couplage_id === identifiant))
-        .map((c) => (c.couplage_id === identifiant
-          ? { ...c, couplage_id: null, groupe: "" } : c));
-    });
-  };
-
-  /** Volume et créneau d'un fouj sont portés par le premier demi-groupe. */
-  const majCouple = (i, field, val) => {
-    setCours((prev) => {
-      const identifiant = prev[i].couplage_id;
-      return prev.map((c, idx) =>
-        idx === i || (identifiant && c.couplage_id === identifiant)
-          ? { ...c, [field]: val } : c);
-    });
-  };
-
   const handleGenerer = async () => {
     setErreur(null); setErreursDonnees([]); setAvertissements([]); setTache(null);
-    if (champsManquants()) { setErreur("Veuillez compléter tous les champs de chaque cours."); return; }
-
     setLoading(true);
     try {
-      // La génération est mise en file : la réponse porte la tâche, pas
-      // le résultat. Le calcul peut durer plusieurs minutes.
-      const { data } = await edtApi.generer(edtId, construirePayload());
+      const { data } = await edtApi.generer(edtId, corpsRequete());
       setTache(data);
       timerRef.current = setTimeout(() => suivre(data.id), INTERVALLE_SUIVI);
     } catch (e) {
@@ -222,6 +117,28 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
     }
   };
 
+  const handleAnnuler = async () => {
+    if (!tache) return;
+    try { await edtApi.annulerTache(edtId, tache.id); } catch { /* déjà finie */ }
+  };
+
+  // Volume par classe : un fouj n'occupe la classe qu'une fois.
+  const volumes = {};
+  const couplesVus = new Set();
+  (programme ?? []).forEach((l) => {
+    if (l.couplage_id) {
+      if (couplesVus.has(l.couplage_id)) return;
+      couplesVus.add(l.couplage_id);
+    }
+    volumes[l.classe_nom] = (volumes[l.classe_nom] ?? 0) + l.heures_par_semaine;
+  });
+  const nbFouj = new Set((programme ?? []).filter((l) => l.couplage_id)
+    .map((l) => l.couplage_id)).size;
+  const creneauxOuverts = params
+    ? params.grille.jours.length * params.grille.horaires.length
+      - params.grille.fermetures.reduce((n, [, ss]) => n + ss.length, 0)
+    : 0;
+
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
@@ -232,23 +149,6 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
       </DialogTitle>
 
       <DialogContent dividers>
-        <Typography variant="body2" color="text.secondary" mb={2}>
-          Définissez les cours à planifier. Le solveur CP-SAT répartira automatiquement
-          les leçons en respectant les contraintes (disponibilités, salles, chevauchements).
-        </Typography>
-
-        <Button
-          size="small"
-          variant="outlined"
-          color="info"
-          startIcon={<Icon>science</Icon>}
-          onClick={handleProgrammeDemo}
-          disabled={loading}
-          sx={{ mb: 2 }}
-        >
-          Reprendre le programme de démonstration
-        </Button>
-
         {erreur && <Alert severity="error" sx={{ mb: 2 }}>{erreur}</Alert>}
 
         {erreursDonnees.length > 0 && (
@@ -270,6 +170,55 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
               )}
             </ul>
           </Alert>
+        )}
+
+        {programme === null ? (
+          <Typography color="text.secondary">Chargement du programme…</Typography>
+        ) : programme.length === 0 ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <AlertTitle>Aucun programme enregistré</AlertTitle>
+            Renseignez d'abord quelles classes suivent quelles matières.
+            <Box mt={1}>
+              <Button size="small" variant="outlined"
+                      onClick={() => { onClose(); navigate("/programme"); }}>
+                Aller au programme annuel
+              </Button>
+            </Box>
+          </Alert>
+        ) : (
+          <>
+            <Box display="flex" justifyContent="space-between" alignItems="baseline" mb={1}>
+              <Typography variant="subtitle2" fontWeight={700}>
+                Programme enregistré
+              </Typography>
+              <Button size="small" onClick={() => { onClose(); navigate("/programme"); }}>
+                Modifier
+              </Button>
+            </Box>
+            <Box display="flex" flexWrap="wrap" gap={0.75} mb={1}>
+              {Object.entries(volumes).map(([nom, h]) => (
+                <Chip key={nom} size="small" label={`${nom} — ${h} h`}
+                      color={h > creneauxOuverts ? "error" : "default"} />
+              ))}
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              {programme.length} lignes ·{" "}
+              {programme.reduce((n, l) => n + l.heures_par_semaine, 0)} heures-professeur
+              {nbFouj > 0 && ` · ${nbFouj} fouj`} · {creneauxOuverts} créneaux
+              ouverts par semaine
+            </Typography>
+
+            <Divider sx={{ my: 2 }} />
+
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              La grille horaire, les fenêtres pédagogiques et les pondérations
+              viennent des réglages de l'établissement.{" "}
+              <Button size="small" sx={{ p: 0, minWidth: 0 }}
+                      onClick={() => { onClose(); navigate("/parametres"); }}>
+                Les modifier
+              </Button>
+            </Typography>
+          </>
         )}
 
         {tache && !tache.terminee && (
@@ -301,100 +250,7 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
           </Alert>
         )}
 
-        {cours.map((c, i) => (
-          <Box key={i} mb={2}>
-            <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-              <Typography variant="caption" fontWeight={700}
-                          color={c.couplage_id ? "secondary" : "primary"}>
-                {c.couplage_id ? `Fouj — demi-groupe ${c.groupe}` : `Cours #${i + 1}`}
-              </Typography>
-
-              {!c.couplage_id && (
-                <Tooltip title="Dédoubler : la classe se scinde en deux
-                                 demi-groupes qui suivent deux cours
-                                 différents au même créneau">
-                  <IconButton size="small" color="secondary" onClick={() => apparier(i)}>
-                    <Icon fontSize="small">call_split</Icon>
-                  </IconButton>
-                </Tooltip>
-              )}
-              {c.couplage_id && c.groupe === "G1" && (
-                <Tooltip title="Annuler le dédoublement">
-                  <IconButton size="small" onClick={() => detacher(i)}>
-                    <Icon fontSize="small">link_off</Icon>
-                  </IconButton>
-                </Tooltip>
-              )}
-
-              {cours.length > 1 && !c.couplage_id && (
-                <IconButton size="small" color="error" onClick={() => removeCours(i)}>
-                  <Icon fontSize="small">remove_circle</Icon>
-                </IconButton>
-              )}
-            </Box>
-            <Box display="grid" sx={{ gridTemplateColumns: "1fr 1fr 1fr 100px 100px", gap: 1.5 }}>
-              <TextField
-                select size="small" label="Classe" required
-                disabled={c.groupe === "G2"}
-                value={c.classe_id} onChange={(e) => majCouple(i, "classe_id", e.target.value)}
-              >
-                {classes.map((cl) => <MenuItem key={cl.id} value={cl.id}>{cl.nom}</MenuItem>)}
-              </TextField>
-              <TextField
-                select size="small" label="Matière" required
-                value={c.matiere_id} onChange={(e) => updateCours(i, "matiere_id", e.target.value)}
-              >
-                {matieres.map((m) => <MenuItem key={m.id} value={m.id}>{m.nom}</MenuItem>)}
-              </TextField>
-              <TextField
-                select size="small" label="Professeur" required
-                value={c.professeur_id} onChange={(e) => updateCours(i, "professeur_id", e.target.value)}
-              >
-                {professeurs.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>{p.prenom} {p.nom}</MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                type="number" size="small" label="Blocs 2h"
-                title="Nombre de séances de 2 h accolées à réserver dans le volume"
-                inputProps={{ min: 0, max: 10 }}
-                disabled={c.groupe === "G2"}
-                value={c.nb_seances_doubles}
-                onChange={(e) => majCouple(i, "nb_seances_doubles", e.target.value)}
-              />
-              <TextField
-                type="number" size="small" label="H/sem."
-                inputProps={{ min: 1, max: 20 }}
-                disabled={c.groupe === "G2"}
-                value={c.heures_par_semaine}
-                onChange={(e) => majCouple(i, "heures_par_semaine", e.target.value)}
-              />
-            </Box>
-            {c.groupe === "G2" && (
-              <Typography variant="caption" color="text.secondary"
-                          display="block" mt={0.5}>
-                Ces deux cours occupent le même créneau : la moitié de la
-                classe suit l'un, l'autre moitié suit l'autre. Il faut donc
-                deux salles disponibles en même temps.
-              </Typography>
-            )}
-            {i < cours.length - 1 && !(c.groupe === "G1") && <Divider sx={{ mt: 2 }} />}
-          </Box>
-        ))}
-
-        <Button
-          startIcon={<Icon>add</Icon>}
-          onClick={addCours}
-          variant="outlined"
-          size="small"
-          sx={{ mt: 1 }}
-        >
-          Ajouter un cours
-        </Button>
-
-        <Divider sx={{ my: 2 }} />
-
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box display="flex" alignItems="center" gap={2} mt={2}>
           <TextField
             type="number" size="small" label="Limite de temps (secondes)"
             inputProps={{ min: 10, max: 900, step: 10 }}
@@ -403,7 +259,8 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
             sx={{ maxWidth: 220 }}
           />
           <Typography variant="caption" color="text.secondary">
-            Le solveur s'arrête après ce délai (plus de temps = meilleure solution).
+            Le solveur s'arrête après ce délai. Plus de temps donne une
+            meilleure solution, jamais une solution différente en nature.
           </Typography>
         </Box>
       </DialogContent>
@@ -419,15 +276,16 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
         ) : (
           <>
             <Button onClick={handleDiagnostic} variant="outlined"
-                    disabled={loading} startIcon={<Icon>fact_check</Icon>}>
+                    disabled={loading || !programme?.length}
+                    startIcon={<Icon>fact_check</Icon>}>
               Vérifier les données
             </Button>
             <LoadingButton
-              variant="contained"
-              color="secondary"
+              variant="contained" color="secondary"
               startIcon={<Icon>play_arrow</Icon>}
               onClick={handleGenerer}
               loading={loading}
+              disabled={!programme?.length}
             >
               Lancer le solveur
             </LoadingButton>

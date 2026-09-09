@@ -88,7 +88,7 @@ class FenetrePedagogique(Base):
     seances_bloquees = Column(String(100), nullable=False)
     libelle = Column(String(200))
 
-    matiere = relationship("Matiere")
+    matiere = relationship("Matiere", back_populates="fenetres")
 
     @property
     def seances(self):

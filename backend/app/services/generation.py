@@ -26,8 +26,8 @@ from ..models.schedule import Lecon
 from ..models.subject import Matiere
 from ..models.task import TacheGeneration
 from ..models.teacher import Professeur
-from . import parametres
-from ..schemas.schedule import GenererRequest
+from . import parametres, programme
+from ..schemas.schedule import CoursRequisInput, GenererRequest
 
 from solver import (
     ERREUR,
@@ -138,8 +138,17 @@ def preparer(requete: GenererRequest, ecole_id: int, db: Session):
     ids_profs = {p.id for p in db_professeurs}
     par_matiere = {m.id: m for m in db_matieres}
 
+    if requete.cours_requis is not None:
+        demandes = [c.model_dump() for c in requete.cours_requis]
+    else:
+        demandes = programme.cours_requis(db, ecole_id)
+    if not demandes:
+        raise HTTPException(
+            400, "Aucun cours à planifier : renseignez le programme annuel.")
+
     cours = []
-    for i, cr in enumerate(requete.cours_requis, start=1):
+    for i, cr in enumerate(
+            (CoursRequisInput(**d) for d in demandes), start=1):
         if cr.classe_id not in ids_classes:
             raise HTTPException(400, f"Classe {cr.classe_id} introuvable")
         if cr.matiere_id not in par_matiere:
