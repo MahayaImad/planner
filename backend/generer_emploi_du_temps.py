@@ -11,6 +11,7 @@ Génération d'un emploi du temps depuis la ligne de commande.
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -41,7 +42,13 @@ def main():
                            help="utiliser le petit jeu de référence")
     analyseur.add_argument("--limite", type=int, default=None,
                            help="temps de calcul maximum, en secondes")
+    analyseur.add_argument("--completer", action="store_true",
+                           help="recruter les enseignants que le programme "
+                                "exige et que l'effectif ne couvre pas")
     args = analyseur.parse_args()
+
+    if args.completer:
+        os.environ["CEM_COMPLETER_EFFECTIF"] = "1"
 
     d, titre = charger(args.reference)
     if args.limite:
@@ -61,6 +68,20 @@ def main():
     anomalies = diagnostiquer(d.grille, d.salles, d.matieres, d.professeurs,
                               d.classes, d.cours_requis, d.options, fenetres)
     bloquantes = [m for n, m in anomalies if n == ERREUR]
+
+    # Un service sans enseignant qualifié n'atteint jamais le solveur :
+    # sans ce contrôle, il produirait un emploi du temps amputé en
+    # silence.
+    orphelins = getattr(d, "services_non_affectes", [])
+    if orphelins:
+        heures = sum(int(x.split("(")[1].split()[0]) for x in orphelins)
+        bloquantes.insert(0, (
+            f"{len(orphelins)} services ({heures} h/semaine) sans enseignant "
+            f"qualifié : {', '.join(getattr(d, 'matieres_non_couvertes', []))}. "
+            f"Relancez avec --completer pour recruter le minimum nécessaire."))
+        anomalies = [(ERREUR, bloquantes[0])] + list(anomalies)
+    if getattr(d, "enseignants_ajoutes", None):
+        print(f"\n  Effectif complété : {', '.join(d.enseignants_ajoutes)}")
     if anomalies:
         print(f"\n  DIAGNOSTIC — {len(bloquantes)} erreur(s), "
               f"{len(anomalies) - len(bloquantes)} avertissement(s)")

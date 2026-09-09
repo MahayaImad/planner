@@ -233,8 +233,12 @@ class Professeur:
     creneaux_disponibles: Set[int] = field(default_factory=set)
     max_heures_consecutives: int = 4
     max_heures_par_jour: int = 6
+    # Service hebdomadaire maximum (None = pas de plafond).
+    max_heures_par_semaine: Optional[int] = None
     # Regrouper le service sur au plus N jours (None = pas de limite).
     max_jours_presence: Optional[int] = None
+    # L'enseignant peut-il assurer une permanence dans ses heures creuses ?
+    assure_permanences: bool = True
 
     @property
     def nom_complet(self) -> str:

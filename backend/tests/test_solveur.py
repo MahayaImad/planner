@@ -8,12 +8,18 @@ les contraintes dures sont bien respectées.
     python3 -m pytest tests/ -q     (ou : python3 tests/test_solveur.py)
 """
 
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Le programme officiel comporte du tamazight, que les fiches
+# enseignants fournies ne couvrent pas : compléter l'effectif pour
+# tester la génération sur le programme entier.
+os.environ.setdefault("CEM_COMPLETER_EFFECTIF", "1")
 
 from solver import (  # noqa: E402
     Classe, CoursRequis, GrilleHoraire, JOURS_SEMAINE_DZ, Matiere, Options,
@@ -98,7 +104,14 @@ def valider(
                 f"D6 salle : {matiere.nom} exige « {type_requis} », "
                 f"placé en {salle.nom} ({salle.type})")
         if not type_requis:
-            partenaire_fouj = bool(cr.couplage_id) and cr.groupe not in ("", "G1")
+            # Seul le demi-groupe porteur (G1) garde la salle attitrée.
+            if cr.couplage_id:
+                porteur = min(
+                    (x for x in cours_requis if x.couplage_id == cr.couplage_id),
+                    key=lambda x: (x.groupe or "", x.id))
+                partenaire_fouj = porteur.id != cr.id
+            else:
+                partenaire_fouj = False
             if options.salle_attitree and classe.salle_attitree_id \
                     and not partenaire_fouj \
                     and l.salle_id != classe.salle_attitree_id:
@@ -147,6 +160,17 @@ def valider(
             violations.append(
                 f"D8 : {prof.nom_complet} a {n} h le {jour} "
                 f"(max {prof.max_heures_par_jour})")
+
+    # D17 service hebdomadaire
+    charge_hebdo = defaultdict(set)
+    for l in lecons:
+        charge_hebdo[l.professeur_id].add(l.creneau_id)
+    for prof in professeurs:
+        plafond = prof.max_heures_par_semaine
+        if plafond is not None and len(charge_hebdo.get(prof.id, ())) > plafond:
+            violations.append(
+                f"D17 : {prof.nom_complet} assure "
+                f"{len(charge_hebdo[prof.id])} h/semaine (max {plafond})")
 
     # D13 jours de présence
     jours_prof = defaultdict(set)
@@ -336,6 +360,23 @@ def test_indisponibilites_sont_respectees():
 def _cem20():
     from tests import donnees_cem20 as d
     return d
+
+
+def test_cem20_effectif_couvre_le_programme():
+    """Chaque service du programme doit trouver un enseignant qualifié."""
+    d = _cem20()
+    assert d.services_non_affectes == [], d.services_non_affectes[:5]
+    heures = sum(s[2] for s in d.services)
+    assert sum(c.heures_par_semaine for c in d.cours_requis) == heures
+    # Aucun service ne dépasse le plafond hebdomadaire de son titulaire.
+    charge = defaultdict(int)
+    for cr in d.cours_requis:
+        charge[cr.professeur_id] += cr.heures_par_semaine
+    for prof in d.professeurs:
+        plafond = prof.max_heures_par_semaine
+        if plafond is not None:
+            assert charge[prof.id] <= plafond, (
+                f"{prof.nom_complet} : {charge[prof.id]} h > {plafond}")
 
 
 def test_cem20_donnees_coherentes():

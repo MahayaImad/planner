@@ -4,11 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, engine
+from .migrations import verifier as verifier_schema
 from .routers import auth, teachers, subjects, rooms, classes, schedules
 
-# Créer les tables au démarrage (en prod on utilisera Alembic)
-Base.metadata.create_all(bind=engine)
+# Le schéma est versionné par Alembic : on contrôle qu'il est à jour au
+# lieu de le créer à la volée. En développement, la migration manquante
+# est appliquée automatiquement ; en production, le démarrage échoue
+# avec la marche à suivre.
+verifier_schema()
 
 app = FastAPI(
     title=settings.APP_TITLE,

@@ -111,11 +111,16 @@ def preparer(requete: GenererRequest, ecole_id: int, db: Session):
             matieres_ids=[m.id for m in p.matieres],
             creneaux_disponibles=tous_creneaux - bloques.get(p.id, set()),
             max_heures_consecutives=p.max_heures_consecutives,
+            max_heures_par_jour=p.max_heures_par_jour or len(requete.grille.horaires),
+            max_heures_par_semaine=p.max_heures_par_semaine,
+            assure_permanences=bool(p.assure_permanences),
         )
         for p in db_professeurs
     ]
     classes = [SClasse(id=c.id, nom=c.nom, niveau=c.niveau, effectif=c.effectif,
-                       max_heures_par_jour=len(requete.grille.horaires))
+                       salle_attitree_id=c.salle_attitree_id,
+                       max_heures_par_jour=(c.max_heures_par_jour
+                                            or len(requete.grille.horaires)))
                for c in db_classes]
 
     ids_classes = {c.id for c in db_classes}

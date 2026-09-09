@@ -131,8 +131,13 @@ class SolveurEmploiDuTemps:
         for cr in self.cours_requis:
             if cr.couplage_id:
                 self._couplages[cr.couplage_id].append(cr)
+        # Le « porteur » d'un fouj est le demi-groupe qui reste dans la
+        # salle attitrée de la classe ; l'autre est accueilli ailleurs.
+        # Le choix suit l'étiquette de groupe (G1 avant G2), pas
+        # l'identifiant interne : il ne doit pas dépendre de l'ordre
+        # dans lequel les cours ont été créés.
         self._porteur_couplage = {
-            cle: min(groupe, key=lambda c: c.id).id
+            cle: min(groupe, key=lambda c: (c.groupe or "", c.id)).id
             for cle, groupe in self._couplages.items()
         }
 
@@ -386,6 +391,13 @@ class SolveurEmploiDuTemps:
 
         # ── D7/D8/D13 — contraintes de service des professeurs ────
         for prof in self.professeurs:
+            # D17 : service hebdomadaire plafonné.
+            if prof.max_heures_par_semaine is not None:
+                semaine = [b_prof[(prof.id, c.id)] for c in self.grille.creneaux
+                           if (prof.id, c.id) in b_prof]
+                if len(semaine) > prof.max_heures_par_semaine:
+                    modele.Add(sum(semaine) <= prof.max_heures_par_semaine)
+
             # D7 : heures consécutives, à l'intérieur d'une demi-journée.
             fenetre = prof.max_heures_consecutives
             for creneaux_dj in self._par_demi_journee.values():
@@ -536,7 +548,8 @@ class SolveurEmploiDuTemps:
 
                         # S6 — permanence : un trou comblé par de l'accueil
                         # ou de l'étude surveillée reste du temps utile.
-                        if p.recompense_permanence:
+                        # Seuls les enseignants qui en assurent y sont éligibles.
+                        if p.recompense_permanence and prof.assure_permanences:
                             creneau = creneaux_dj[i]
                             perm = modele.NewBoolVar(
                                 f"perm_p{prof.id}_t{creneau.id}")

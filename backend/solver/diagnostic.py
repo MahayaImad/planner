@@ -227,11 +227,45 @@ def diagnostiquer(
             if charge > capacite:
                 err(f"{prof.nom_complet} : {charge} h/semaine ne tiennent pas en "
                     f"{prof.max_jours_presence} jours de présence ({capacite} h max).")
+        if (prof.max_heures_par_semaine is not None
+                and charge > prof.max_heures_par_semaine):
+            err(f"{prof.nom_complet} : {charge} h/semaine affectées pour un "
+                f"service maximum de {prof.max_heures_par_semaine} h. "
+                f"Répartissez {charge - prof.max_heures_par_semaine} h sur "
+                f"un autre enseignant.")
         if charge > dispo * 0.85:
             avert(f"{prof.nom_complet} est chargé à "
                   f"{charge}/{dispo} créneaux : peu de marge de manœuvre.")
 
-    # ── 5. Capacité des salles par type ───────────────────────────
+    # ── 5. Couverture des matières par le corps enseignant ────────
+    # Une matière sans enseignant qualifié, ou dont le volume dépasse le
+    # service cumulé des enseignants disponibles, rend le problème
+    # insoluble — mais l'affectation seule ne le montre pas.
+    volume_matiere = defaultdict(int)
+    for cr in cours_valides:
+        volume_matiere[cr.matiere_id] += cr.heures_par_semaine
+
+    for matiere_id, volume in sorted(volume_matiere.items()):
+        matiere = idx_matieres[matiere_id]
+        qualifies = [p for p in professeurs
+                     if not p.matieres_ids or matiere_id in p.matieres_ids]
+        if not qualifies:
+            err(f"Aucun enseignant n'est qualifié pour « {matiere.nom} » "
+                f"({volume} h/semaine à assurer). Ajoutez un enseignant ou "
+                f"retirez la matière du programme.")
+            continue
+        capacite = 0
+        for prof in qualifies:
+            plafond = prof.max_heures_par_semaine
+            dispo = (len(prof.creneaux_disponibles) if prof.creneaux_disponibles
+                     else nb_creneaux)
+            capacite += min(dispo, plafond) if plafond is not None else dispo
+        if volume > capacite:
+            err(f"« {matiere.nom} » : {volume} h/semaine pour un service cumulé "
+                f"de {capacite} h chez les {len(qualifies)} enseignant(s) "
+                f"qualifié(s). Il manque {volume - capacite} h.")
+
+    # ── 6. Capacité des salles par type ───────────────────────────
     besoin_type = defaultdict(int)
     for cr in cours_valides:
         type_requis = cr.type_salle_requis or idx_matieres[cr.matiere_id].type_salle_requis
@@ -253,7 +287,7 @@ def diagnostiquer(
             avert(f"Salles « {type_salle} » occupées à "
                   f"{100 * besoin // max(offre, 1)} % : très peu de marge.")
 
-    # ── 6. Doublons ───────────────────────────────────────────────
+    # ── 7. Doublons ───────────────────────────────────────────────
     vus = defaultdict(list)
     for cr in cours_valides:
         if cr.couplage_id:

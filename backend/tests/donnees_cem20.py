@@ -14,6 +14,8 @@ seule partie fictive du jeu de données.
 
 import csv
 import io
+import os
+from collections import defaultdict
 from typing import Dict, List
 
 from solver.models import (
@@ -268,144 +270,223 @@ def _regles_du_niveau(niveau: str):
 
 
 # ══════════════════════════════════════════════════════════════════
-#  CORPS ENSEIGNANT (reconstitué — à remplacer par le tableau réel)
+#  CORPS ENSEIGNANT — staff.csv
 # ══════════════════════════════════════════════════════════════════
 
-# Nombre d'enseignants par matière, calé sur le volume horaire à couvrir.
-CORPS_ENSEIGNANT = [
-    ("ARABIC", 7), ("MATH", 7), ("AMAZIGH", 4), ("FRENCH", 4), ("ENGLISH", 5),
-    ("SCIENCE", 4), ("PHYS", 4), ("ISLAMIC", 2), ("CIVICS", 2),
-    ("ART_MUSIC", 2), ("PE", 3), ("INFO", 2),
-]
-# Histoire et géographie sont assurées par le même enseignant (PEM).
-CORPS_BIVALENT = [(("HIST", "GEO"), 3)]
+STAFF_CSV = """\
+Teacher_ID,Qualified_Subjects,Max_Weekly_Hours,Requires_Reception,Unavailable_Windows
+Ar_T1,ARABIC,20,True,
+Ar_T2,ARABIC,20,True,
+Ar_T3,ARABIC,20,True,
+Ar_T4,ARABIC,20,True,
+Ar_T5,ARABIC,20,True,
+Ar_T6,ARABIC,20,True,
+Ar_T7,ARABIC,20,True,
+Ma_T1,MATH,20,True,
+Ma_T2,MATH,20,True,
+Ma_T3,MATH,20,True,
+Ma_T4,MATH,20,True,
+Ma_T5,MATH,20,True,
+Ma_T6,MATH,20,True,
+Ph_T1,PHYS,20,True,
+Ph_T2,PHYS,20,True,
+Ph_T3,PHYS,20,True,
+Is_T1,ISLAMIC,20,True,
+Is_T2,ISLAMIC,20,True,
+Fr_T1,FRENCH,20,True,
+Fr_T2,FRENCH,20,True,
+Fr_T3,FRENCH,20,True,
+Fr_T4,FRENCH,20,True,
+Fr_T5,FRENCH,20,True,
+Fr_T6,FRENCH,20,True,
+En_T1,ENGLISH,20,True,
+En_T2,ENGLISH,20,True,
+En_T3,ENGLISH,20,True,
+En_T4,ENGLISH,20,True,
+Sc_T1,SCIENCE,20,True,
+Sc_T2,SCIENCE,20,True,
+Sc_T3,SCIENCE,20,True,
+PE_T1,PE,20,True,
+PE_T2,PE,20,True,
+Art_T1,ART_MUSIC,20,True,
+Info_T1,INFO,20,True,
+Info_T2,INFO,20,True,
+Soc_T1,HIST;GEO;CIVICS,20,True,
+Soc_T2,HIST;GEO;CIVICS,20,True,
+Soc_T3,HIST;GEO;CIVICS,20,True,
+"""
 
-NOMS = [
-    "Benali", "Meziane", "Hadj", "Bouzid", "Kaci", "Rouag", "Saadi",
-    "Mansouri", "Cherif", "Belkacem", "Zerrouki", "Ait Ali", "Boudjema",
-    "Lounis", "Hamidi", "Terki", "Ould Ali", "Brahimi", "Guerrouj",
-    "Slimani", "Ferhat", "Chaoui", "Nait Kaci", "Amrani", "Bensalem",
-    "Dahmani", "Khelifi", "Larbi", "Merabet", "Necib", "Ouali", "Rahmani",
-    "Sadaoui", "Taleb", "Yahiaoui", "Zitouni", "Aissaoui", "Belhadj",
-    "Cheriet", "Djelloul", "Fellah", "Ghezali", "Hocine", "Idir",
-    "Kessai", "Laribi", "Mokrani", "Nouri", "Toumi",
-]
-PRENOMS = [
-    "Karim", "Fatima", "Amina", "Mohamed", "Leila", "Sofiane", "Nadia",
-    "Omar", "Yasmine", "Rachid", "Samira", "Hocine", "Nawel", "Farid",
-    "Souad", "Djamel", "Malika", "Youcef", "Assia", "Tarek", "Lynda",
-    "Bilal", "Zohra", "Salim", "Hayat", "Nabil", "Wassila", "Adel",
-]
+# Le programme exige des matières que l'effectif fourni ne couvre pas.
+# Mettre à True recrute le minimum d'enseignants manquants, signalés
+# dans « enseignants_ajoutes », pour pouvoir tout de même produire un
+# emploi du temps complet.
+COMPLETER_EFFECTIF_MANQUANT = os.environ.get("CEM_COMPLETER_EFFECTIF") == "1"
 
 professeurs: List[Professeur] = []
 CORPS: Dict[str, List[int]] = {}
-_pid = 1
+ID_PROF: Dict[str, int] = {}
 
 
-def _recruter(codes, nombre):
-    global _pid
-    ids = []
-    for _ in range(nombre):
-        professeurs.append(Professeur(
-            id=_pid,
-            nom=NOMS[(_pid - 1) % len(NOMS)],
-            prenom=PRENOMS[(_pid - 1) % len(PRENOMS)],
-            matieres_ids=[ID_MATIERE[c] for c in codes],
-            max_heures_consecutives=4,
-            max_heures_par_jour=6,
-        ))
-        ids.append(_pid)
-        _pid += 1
-    for code in codes:
-        CORPS[code] = ids
-    return ids
+def _creneaux_bloques(fenetres: str) -> set:
+    """« 1:0;1;2 » → créneaux du jour 1, séances 0, 1 et 2."""
+    bloques = set()
+    for fenetre in filter(None, (f.strip() for f in fenetres.split("|"))):
+        jour, _, seances = fenetre.partition(":")
+        cibles = {int(x) for x in seances.split(";") if x.strip()}
+        for creneau in creneaux:
+            if creneau.index_jour == int(jour) and creneau.index_seance in cibles:
+                bloques.add(creneau.id)
+    return bloques
 
 
-for code, nombre in CORPS_ENSEIGNANT:
-    _recruter((code,), nombre)
-for codes, nombre in CORPS_BIVALENT:
-    _recruter(codes, nombre)
-
-# Chaque division reçoit un enseignant fixe par matière : le même
-# professeur assure le cours et le TD/TP de sa classe.
-TITULAIRE: Dict[tuple, int] = {}
-for code, enseignants in CORPS.items():
-    for rang, classe in enumerate(classes):
-        TITULAIRE[(classe.id, code)] = enseignants[rang % len(enseignants)]
-
-# ══════════════════════════════════════════════════════════════════
-#  COURS REQUIS
-# ══════════════════════════════════════════════════════════════════
-
-cours_requis: List[CoursRequis] = []
-_cid = 1
-
-
-def _ajouter(classe, code, heures, doubles, max_jour, type_salle,
-             couplage=None, groupe=""):
-    global _cid
-    cours_requis.append(CoursRequis(
-        id=_cid,
-        classe_id=classe.id,
-        matiere_id=ID_MATIERE[code],
-        professeur_id=TITULAIRE[(classe.id, code)],
-        heures_par_semaine=heures,
-        type_salle_requis=type_salle,
-        nb_seances_doubles=doubles,
-        max_heures_par_jour=max_jour,
-        couplage_id=couplage,
-        groupe=groupe,
+def _enregistrer(identifiant: str, codes, max_hebdo: int,
+                 permanences: bool, indisponibilites: str = "") -> int:
+    prof_id = len(professeurs) + 1
+    nom, _, numero = identifiant.partition("_")
+    bloques = _creneaux_bloques(indisponibilites)
+    professeurs.append(Professeur(
+        id=prof_id,
+        nom=identifiant,
+        prenom=nom,
+        matieres_ids=[ID_MATIERE[c] for c in codes],
+        creneaux_disponibles=({c.id for c in creneaux} - bloques) if bloques else set(),
+        max_heures_consecutives=4,
+        max_heures_par_jour=6,
+        max_heures_par_semaine=max_hebdo,
+        assure_permanences=permanences,
     ))
-    _cid += 1
+    ID_PROF[identifiant] = prof_id
+    for code in codes:
+        CORPS.setdefault(code, []).append(prof_id)
+    return prof_id
 
+
+for ligne in csv.DictReader(io.StringIO(STAFF_CSV)):
+    _enregistrer(
+        ligne["Teacher_ID"],
+        [c.strip() for c in ligne["Qualified_Subjects"].split(";") if c.strip()],
+        int(ligne["Max_Weekly_Hours"]),
+        ligne["Requires_Reception"].strip().lower() == "true",
+        ligne.get("Unavailable_Windows") or "",
+    )
+
+# ══════════════════════════════════════════════════════════════════
+#  SERVICES À RÉPARTIR
+#  Chaque ligne du programme devient un service à confier à un
+#  enseignant qualifié, sans dépasser son plafond hebdomadaire.
+# ══════════════════════════════════════════════════════════════════
+
+# (code matière, heures, blocs de 2 h, max h/jour, type de salle,
+#  identifiant de couplage, groupe)
+services: List[tuple] = []
 
 for classe in classes:
     programme = PROGRAMME[classe.niveau]
+    couples = set()
 
-    # ── Cours en classe entière ───────────────────────────────────
+    for regle in _regles_du_niveau(classe.niveau):
+        mode = MODES_COUPLAGE[regle["Coupling_Mode"]]
+        couplage = f"{classe.nom}:{regle['Rule_ID']}"
+        for rang, code in enumerate((regle["Primary_Subject"],
+                                     regle["Secondary_Subject"])):
+            services.append((classe, code, mode["heures"], mode["doubles"],
+                             mode["max_jour"],
+                             programme[code]["Required_Room_Type"],
+                             couplage, f"G{rang + 1}"))
+            couples.add(code)
+
     for code, ligne in programme.items():
         heures = int(ligne["Hrs_Cours"])
         if heures:
             bloc = ligne["Cours_Block_Policy"]
-            # ONE_2H_BLOCK_REST_1H : un bloc de 2 h, le reste en heures
-            # isolées. SINGLE_HOURS : jamais deux heures le même jour.
             doubles = 1 if bloc == "ONE_2H_BLOCK_REST_1H" else 0
-            max_jour = 2 if doubles else 1
-            _ajouter(classe, code, heures, doubles, max_jour,
-                     ligne["Required_Room_Type"])
+            services.append((classe, code, heures, doubles, 2 if doubles else 1,
+                             ligne["Required_Room_Type"], None, ""))
 
-        # ── Pratique (EPS) : bloc insécable ───────────────────────
         pratique = int(ligne["Hrs_Practice"])
         if pratique:
             taille = int(ligne["Practice_Block_Size"]) or pratique
-            _ajouter(classe, code, pratique, pratique // taille, taille,
-                     ligne["Required_Room_Type"])
+            services.append((classe, code, pratique, pratique // taille, taille,
+                             ligne["Required_Room_Type"], None, ""))
 
-    # ── Fouj : deux demi-groupes en parallèle ─────────────────────
-    couples = set()
-    for regle in _regles_du_niveau(classe.niveau):
-        mode = MODES_COUPLAGE[regle["Coupling_Mode"]]
-        couplage = f"{classe.nom}:{regle['Rule_ID']}"
-        for rang, (code, type_seance) in enumerate((
-            (regle["Primary_Subject"], regle["Primary_Type"]),
-            (regle["Secondary_Subject"], regle["Secondary_Type"]),
-        )):
-            ligne = programme[code]
-            _ajouter(
-                classe, code, mode["heures"], mode["doubles"], mode["max_jour"],
-                ligne["Required_Room_Type"],
-                couplage=couplage, groupe=f"G{rang + 1}",
-            )
-            couples.add(code)
+        if code not in couples:
+            for colonne in ("Hrs_TD", "Hrs_TP"):
+                heures = int(ligne[colonne])
+                if heures:
+                    services.append((classe, code, heures, 0, 1,
+                                     ligne["Required_Room_Type"], None, ""))
 
-    # ── TD/TP hors fouj (informatique) ────────────────────────────
-    for code, ligne in programme.items():
-        if code in couples:
+# ── Répartition des services ──────────────────────────────────────
+# Plusieurs matières sont à saturation : leur volume égale exactement le
+# service cumulé des enseignants qualifiés. Une répartition à la ronde
+# déborderait ; on confie donc chaque service à l'enseignant qui a le
+# plus de marge, en gardant si possible le même pour le cours et le TD
+# d'une classe.
+
+def _repartir():
+    """Retourne (cours affectés, services non affectés)."""
+    reste = {p.id: (p.max_heures_par_semaine or 10 ** 6) for p in professeurs}
+    titulaire: Dict[tuple, int] = {}
+    affectes: List[CoursRequis] = []
+    orphelins: List[tuple] = []
+    identifiant = 1
+
+    for service in sorted(services, key=lambda x: (-x[2], x[1], x[0].id)):
+        classe, code, heures, doubles, max_jour, salle, couplage, groupe = service
+        qualifies = CORPS.get(code, [])
+        habituel = titulaire.get((classe.id, code))
+        candidats = ([habituel] if habituel in qualifies
+                     and reste[habituel] >= heures else [])
+        candidats += sorted((p for p in qualifies
+                             if p != habituel and reste[p] >= heures),
+                            key=lambda p: -reste[p])
+        if not candidats:
+            orphelins.append(service)
             continue
-        for colonne in ("Hrs_TD", "Hrs_TP"):
-            heures = int(ligne[colonne])
-            if heures:
-                _ajouter(classe, code, heures, 0, 1, ligne["Required_Room_Type"])
+
+        prof_id = candidats[0]
+        reste[prof_id] -= heures
+        titulaire.setdefault((classe.id, code), prof_id)
+        affectes.append(CoursRequis(
+            id=identifiant, classe_id=classe.id, matiere_id=ID_MATIERE[code],
+            professeur_id=prof_id, heures_par_semaine=heures,
+            type_salle_requis=salle, nb_seances_doubles=doubles,
+            max_heures_par_jour=max_jour, couplage_id=couplage, groupe=groupe,
+        ))
+        identifiant += 1
+
+    return affectes, orphelins
+
+
+_besoin = defaultdict(int)
+for _classe, _code, _heures, *_ in services:
+    _besoin[_code] += _heures
+
+matieres_non_couvertes = sorted(
+    code for code in _besoin if not CORPS.get(code)
+)
+
+cours_requis, _orphelins = _repartir()
+
+# Un service dure 1, 2 ou 3 heures et ne se coupe pas : diviser le volume
+# par le plafond hebdomadaire sous-estime l'effectif nécessaire. On
+# recrute donc un enseignant à la fois, jusqu'à ce que tout soit couvert.
+enseignants_ajoutes: List[str] = []
+if COMPLETER_EFFECTIF_MANQUANT:
+    while _orphelins and len(enseignants_ajoutes) < 50:
+        manquantes = sorted({service[1] for service in _orphelins})
+        for code in manquantes:
+            numero = sum(1 for x in enseignants_ajoutes
+                         if x.startswith(code[:3].capitalize())) + 1
+            identifiant = f"{code[:3].capitalize()}_X{numero}"
+            _enregistrer(identifiant, [code], 20, True)
+            enseignants_ajoutes.append(identifiant)
+        cours_requis, _orphelins = _repartir()
+
+services_non_affectes = [
+    f"{classe.nom} / {code} ({heures} h)"
+    for classe, code, heures, *_ in _orphelins
+]
 
 # ══════════════════════════════════════════════════════════════════
 #  PARAMÉTRAGE
