@@ -1,1 +1,1 @@
-from . import auth, teachers, subjects, rooms, classes, schedules
+from . import auth, teachers, subjects, rooms, classes, schedules, demo

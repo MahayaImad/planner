@@ -75,6 +75,17 @@ export const classesApi = {
   supprimer: (id) => api.delete(`/classes/${id}`),
 };
 
+// ── Données de démonstration ───────────────────────────────────────
+export const demoApi = {
+  // Décrit le jeu sans rien créer.
+  apercu: () => api.get("/demonstration/"),
+  // remplacer = true efface les données existantes de l'établissement.
+  charger: (remplacer = false) =>
+    api.post("/demonstration/charger", { remplacer }),
+  // Cours à planifier correspondant au jeu, pour pré-remplir la génération.
+  programme: () => api.get("/demonstration/programme"),
+};
+
 // ── Emplois du temps ───────────────────────────────────────────────
 export const edtApi = {
   liste: () => api.get("/emplois-du-temps/"),

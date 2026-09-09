@@ -287,6 +287,101 @@ def test_limite_de_calcul_est_plafonnee():
     _attendre(entetes, edt, tache_id)
 
 
+# ══════════════════════════════════════════════════════════════════
+#  Jeu de démonstration
+# ══════════════════════════════════════════════════════════════════
+
+def test_demonstration_apercu_ne_cree_rien():
+    entetes, *_ = _etablissement("demo-apercu")
+    apercu = client.get("/demonstration/", headers=entetes).json()
+    assert apercu["classes"] > 0 and apercu["professeurs"] > 0
+    # L'établissement de test contient déjà des ressources.
+    assert apercu["etablissement_deja_peuple"] is True
+
+    vierge = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "Vierge", "email": "vierge@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "vierge-admin@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    h = {"Authorization": f"Bearer {vierge.json()['access_token']}"}
+    assert client.get("/demonstration/", headers=h).json()[
+        "etablissement_deja_peuple"] is False
+    # L'aperçu n'a rien écrit.
+    assert client.get("/matieres/", headers=h).json() == []
+
+
+def test_demonstration_refuse_decraser_sans_confirmation():
+    """Effacer le travail d'un responsable sans le lui demander serait pire
+    que de ne rien faire."""
+    entetes, matieres, classes, profs, edt = _etablissement("demo-ecrase")
+    avant = len(client.get("/matieres/", headers=entetes).json())
+
+    r = client.post("/demonstration/charger", json={}, headers=entetes)
+    assert r.status_code == 409
+    assert len(client.get("/matieres/", headers=entetes).json()) == avant
+
+    r = client.post("/demonstration/charger", json={"remplacer": True},
+                    headers=entetes)
+    assert r.status_code == 201, r.text
+    apres = client.get("/matieres/", headers=entetes).json()
+    assert len(apres) == r.json()["matieres"]
+    # Les emplois du temps de l'établissement ont été remplacés eux aussi.
+    edts = client.get("/emplois-du-temps/", headers=entetes).json()
+    assert [e["id"] for e in edts] == [r.json()["emploi_du_temps_id"]]
+
+
+def test_demonstration_produit_un_emploi_du_temps_complet():
+    """Le jeu doit se générer sans intervention : c'est tout son intérêt."""
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "Demo", "email": "demo-gen@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "demo-gen-a@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    installation = client.post("/demonstration/charger", json={},
+                               headers=entetes)
+    assert installation.status_code == 201, installation.text
+    edt = installation.json()["emploi_du_temps_id"]
+
+    programme = client.get("/demonstration/programme", headers=entetes).json()
+    assert sum(c["heures_par_semaine"] for c in programme) == \
+        installation.json()["lecons_a_placer"]
+
+    demande = {"cours_requis": programme, "limite_secondes": 60}
+    diagnostic = client.post(f"/emplois-du-temps/{edt}/diagnostic",
+                             json=demande, headers=entetes).json()
+    assert diagnostic["realisable"], diagnostic["erreurs"]
+
+    tache = client.post(f"/emplois-du-temps/{edt}/generer", json=demande,
+                        headers=entetes)
+    assert tache.status_code == 202
+    etat = _attendre(entetes, edt, tache.json()["id"], delai=120)
+    assert etat["statut"] == "terminee", etat["message"]
+    assert etat["resultat"]["lecons_planifiees"] == \
+        installation.json()["lecons_a_placer"]
+    assert etat["resultat"]["qualite"]["trous_classes"] == 0
+
+    # Les indisponibilités du jeu doivent être respectées.
+    lecons = client.get(f"/emplois-du-temps/{edt}/lecons", headers=entetes).json()
+    partages = [p for p in client.get("/professeurs/", headers=entetes).json()
+                if p["nom"] == "Cherif"]
+    assert partages, "l'enseignant partagé du jeu est absent"
+    hors_dispo = [l for l in lecons
+                  if l["professeur_id"] == partages[0]["id"]
+                  and l["jour"] == "Jeudi" and l["heure_debut"] >= "13:00"]
+    assert hors_dispo == [], hors_dispo
+
+
+def test_demonstration_programme_absent_est_signale():
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "Sans demo", "email": "sansdemo@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "sansdemo-a@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    reponse = client.get("/demonstration/programme", headers=entetes)
+    assert reponse.status_code == 409
+    assert "démonstration" in reponse.json()["detail"]
+
+
 if __name__ == "__main__":
     echecs = 0
     for nom, fonction in sorted(globals().items()):

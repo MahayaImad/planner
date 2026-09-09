@@ -20,7 +20,7 @@ import AlertTitle from "@mui/material/AlertTitle";
 import LinearProgress from "@mui/material/LinearProgress";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useSnackbar } from "notistack";
-import { edtApi } from "app/services/api";
+import { edtApi, demoApi } from "app/services/api";
 
 const EMPTY_COURS = {
   classe_id: "", matiere_id: "", professeur_id: "",
@@ -106,6 +106,34 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
     }
   };
 
+  /**
+   * Reprend le programme du jeu de démonstration.
+   * Saisir quarante lignes à la main pour un simple essai découragerait
+   * quiconque veut seulement voir tourner le solveur.
+   */
+  const handleProgrammeDemo = async () => {
+    setErreur(null); setErreursDonnees([]);
+    setLoading(true);
+    try {
+      const { data } = await demoApi.programme();
+      setCours(data.map((c) => ({
+        classe_id: c.classe_id,
+        matiere_id: c.matiere_id,
+        professeur_id: c.professeur_id,
+        heures_par_semaine: c.heures_par_semaine,
+        nb_seances_doubles: c.nb_seances_doubles ?? 0,
+        max_heures_par_jour: c.max_heures_par_jour ?? 2,
+      })));
+      enqueueSnackbar(`${data.length} cours repris du jeu de démonstration`,
+        { variant: "success" });
+    } catch (e) {
+      setErreur(e.response?.data?.detail
+        ?? "Le programme de démonstration n'est pas disponible");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAnnuler = async () => {
     if (!tache) return;
     try { await edtApi.annulerTache(edtId, tache.id); } catch { /* déjà terminée */ }
@@ -155,6 +183,18 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
           Définissez les cours à planifier. Le solveur CP-SAT répartira automatiquement
           les leçons en respectant les contraintes (disponibilités, salles, chevauchements).
         </Typography>
+
+        <Button
+          size="small"
+          variant="outlined"
+          color="info"
+          startIcon={<Icon>science</Icon>}
+          onClick={handleProgrammeDemo}
+          disabled={loading}
+          sx={{ mb: 2 }}
+        >
+          Reprendre le programme de démonstration
+        </Button>
 
         {erreur && <Alert severity="error" sx={{ mb: 2 }}>{erreur}</Alert>}
 

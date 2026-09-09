@@ -7,8 +7,16 @@ import Icon from "@mui/material/Icon";
 import Button from "@mui/material/Button";
 import { styled, useTheme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
+import Alert from "@mui/material/Alert";
+import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import LoadingButton from "@mui/lab/LoadingButton";
+import { useSnackbar } from "notistack";
 import {
-  professeursApi, matieresApi, sallesApi, classesApi, edtApi,
+  professeursApi, matieresApi, sallesApi, classesApi, edtApi, demoApi,
 } from "app/services/api";
 
 const ContentBox = styled(Box)(({ theme }) => ({
@@ -49,9 +57,13 @@ const STATS = [
 export default function Dashboard() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
   const [counts, setCounts] = useState({ professeurs: 0, matieres: 0, salles: 0, classes: 0, edts: 0 });
+  const [demo, setDemo] = useState(null);
+  const [confirmation, setConfirmation] = useState(false);
+  const [chargement, setChargement] = useState(false);
 
-  useEffect(() => {
+  const rafraichir = () =>
     Promise.all([
       professeursApi.liste(),
       matieresApi.liste(),
@@ -67,7 +79,32 @@ export default function Dashboard() {
         edts: e.data.length,
       });
     }).catch(() => {});
+
+  useEffect(() => {
+    rafraichir();
+    demoApi.apercu().then(({ data }) => setDemo(data)).catch(() => {});
   }, []);
+
+  /** Installe le jeu de démonstration, après confirmation si nécessaire. */
+  const chargerDemo = async () => {
+    setChargement(true);
+    try {
+      const { data } = await demoApi.charger(demo?.etablissement_deja_peuple);
+      enqueueSnackbar(data.message, { variant: "success" });
+      setConfirmation(false);
+      await rafraichir();
+      const { data: apercu } = await demoApi.apercu();
+      setDemo(apercu);
+      navigate("/emplois-du-temps");
+    } catch (e) {
+      enqueueSnackbar(
+        e.response?.data?.detail ?? "Le chargement a échoué",
+        { variant: "error" },
+      );
+    } finally {
+      setChargement(false);
+    }
+  };
 
   const values = [counts.professeurs, counts.matieres, counts.salles, counts.classes, counts.edts];
 
@@ -155,7 +192,62 @@ export default function Dashboard() {
         </Grid>
 
         <Grid size={{ xs: 12, md: 5 }}>
-          <Card sx={{ p: 3, height: "100%" }}>
+          {/* Jeu de démonstration : permet de découvrir la plateforme
+              et de lancer une génération sans rien saisir. */}
+          <Card sx={{ p: 3, mb: 3, borderTop: "4px solid #0288d1" }}>
+            <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Icon sx={{ color: "#0288d1" }}>science</Icon>
+              <Typography variant="h6" fontWeight={600}>
+                Découvrir avec un exemple
+              </Typography>
+            </Box>
+
+            {demo ? (
+              <>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  {demo.description}
+                </Typography>
+                <Box display="flex" flexWrap="wrap" gap={0.75} mb={2}>
+                  <Chip size="small" label={`${demo.classes} classes`} />
+                  <Chip size="small" label={`${demo.professeurs} enseignants`} />
+                  <Chip size="small" label={`${demo.matieres} matières`} />
+                  <Chip size="small" label={`${demo.salles} salles`} />
+                  <Chip size="small" color="primary" variant="outlined"
+                        label={`${demo.lecons_a_placer} leçons à placer`} />
+                </Box>
+
+                {demo.etablissement_deja_peuple && (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    Votre établissement contient déjà des données. Les
+                    installer effacera matières, salles, classes,
+                    enseignants et emplois du temps existants.
+                  </Alert>
+                )}
+
+                <Button
+                  variant="contained"
+                  fullWidth
+                  startIcon={<Icon>auto_awesome</Icon>}
+                  color={demo.etablissement_deja_peuple ? "warning" : "info"}
+                  onClick={() => setConfirmation(true)}
+                >
+                  {demo.etablissement_deja_peuple
+                    ? "Remplacer par l'exemple"
+                    : "Installer le jeu d'exemple"}
+                </Button>
+                <Typography variant="caption" color="text.secondary"
+                            display="block" mt={1}>
+                  Rien n'est écrit tant que vous n'avez pas confirmé.
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                Chargement…
+              </Typography>
+            )}
+          </Card>
+
+          <Card sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight={600} mb={2}>
               Accès rapide
             </Typography>
@@ -184,6 +276,52 @@ export default function Dashboard() {
           </Card>
         </Grid>
       </Grid>
+
+      <Dialog open={confirmation} onClose={() => setConfirmation(false)}
+              maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {demo?.etablissement_deja_peuple
+            ? "Remplacer les données existantes ?"
+            : "Installer le jeu de démonstration ?"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" mb={2}>
+            Cette action crée dans votre établissement :
+          </Typography>
+          <Box component="ul" sx={{ pl: 3, m: 0, "& li": { mb: 0.5 } }}>
+            <li><b>{demo?.matieres} matières</b>, dont trois exigeant une
+                salle spécialisée (laboratoire, informatique, terrain)</li>
+            <li><b>{demo?.salles} salles</b> de types différents</li>
+            <li><b>{demo?.classes} classes</b> de {demo?.heures_par_classe} h
+                hebdomadaires, chacune avec sa salle attitrée</li>
+            <li><b>{demo?.professeurs} enseignants</b>, dont deux bivalents
+                et deux ayant des indisponibilités</li>
+            <li>un emploi du temps vide, prêt à générer</li>
+          </Box>
+
+          {demo?.etablissement_deja_peuple && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              Vos matières, salles, classes, enseignants et emplois du
+              temps actuels seront <b>définitivement supprimés</b>.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setConfirmation(false)} color="inherit">
+            Annuler
+          </Button>
+          <LoadingButton
+            variant="contained"
+            color={demo?.etablissement_deja_peuple ? "error" : "primary"}
+            loading={chargement}
+            onClick={chargerDemo}
+          >
+            {demo?.etablissement_deja_peuple
+              ? "Effacer et installer"
+              : "Installer"}
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
     </ContentBox>
   );
 }
