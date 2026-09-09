@@ -20,6 +20,8 @@ import { useSnackbar } from "notistack";
 import { professeursApi, matieresApi } from "app/services/api";
 import CrudDialog from "app/components/CrudDialog";
 import DisponibilitesDialog from "./DisponibilitesDialog";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 
 const ContentBox = styled(Box)(({ theme }) => ({
   margin: "2rem",
@@ -28,7 +30,9 @@ const ContentBox = styled(Box)(({ theme }) => ({
 
 const EMPTY = {
   nom: "", prenom: "", telephone: "", email: "",
-  max_heures_consecutives: 3, matieres_ids: [],
+  max_heures_consecutives: 4, max_heures_par_jour: 6,
+  max_heures_par_semaine: "", assure_permanences: true,
+  matieres_ids: [],
 };
 
 export default function ProfesseursList() {
@@ -56,10 +60,20 @@ export default function ProfesseursList() {
   useEffect(() => { load(); }, [load]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setDialogOpen(true); };
+  /** Un service hebdomadaire laissé vide signifie « aucun plafond ». */
+  const charge = () => ({
+    ...form,
+    max_heures_par_semaine:
+      form.max_heures_par_semaine === "" ? null : form.max_heures_par_semaine,
+  });
+
   const openEdit = (row) => {
     setEditing(row);
     setForm({ nom: row.nom, prenom: row.prenom, telephone: row.telephone || "",
                email: row.email || "", max_heures_consecutives: row.max_heures_consecutives,
+      max_heures_par_jour: row.max_heures_par_jour ?? 6,
+      max_heures_par_semaine: row.max_heures_par_semaine ?? "",
+      assure_permanences: row.assure_permanences ?? true,
                matieres_ids: [] });
     setDialogOpen(true);
   };
@@ -69,10 +83,10 @@ export default function ProfesseursList() {
     setSaving(true);
     try {
       if (editing) {
-        await professeursApi.modifier(editing.id, form);
+        await professeursApi.modifier(editing.id, charge());
         enqueueSnackbar("Professeur modifié", { variant: "success" });
       } else {
-        await professeursApi.creer(form);
+        await professeursApi.creer(charge());
         enqueueSnackbar("Professeur ajouté", { variant: "success" });
       }
       setDialogOpen(false);
@@ -217,11 +231,40 @@ export default function ProfesseursList() {
           label="Téléphone" fullWidth size="small"
           value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })}
         />
+        <Box display="flex" gap={2}>
+          <TextField
+            label="Heures consécutives max" type="number" fullWidth size="small"
+            inputProps={{ min: 1, max: 8 }}
+            helperText="Sans pause dans une demi-journée"
+            value={form.max_heures_consecutives}
+            onChange={(e) => setForm({ ...form, max_heures_consecutives: +e.target.value })}
+          />
+          <TextField
+            label="Heures max par jour" type="number" fullWidth size="small"
+            inputProps={{ min: 1, max: 12 }}
+            value={form.max_heures_par_jour}
+            onChange={(e) => setForm({ ...form, max_heures_par_jour: +e.target.value })}
+          />
+        </Box>
         <TextField
-          label="Heures consécutives max" type="number" fullWidth size="small"
-          inputProps={{ min: 1, max: 8 }}
-          value={form.max_heures_consecutives}
-          onChange={(e) => setForm({ ...form, max_heures_consecutives: +e.target.value })}
+          label="Service hebdomadaire maximum" type="number" fullWidth size="small"
+          inputProps={{ min: 1, max: 40 }}
+          helperText="Nombre d'heures dues par semaine. Laisser vide pour ne
+                      poser aucun plafond."
+          value={form.max_heures_par_semaine}
+          onChange={(e) => setForm({
+            ...form,
+            max_heures_par_semaine: e.target.value === "" ? "" : +e.target.value,
+          })}
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={form.assure_permanences}
+              onChange={(e) => setForm({ ...form, assure_permanences: e.target.checked })}
+            />
+          }
+          label="Peut assurer une permanence pendant ses heures creuses"
         />
         <Box>
           <Typography variant="caption" color="text.secondary" mb={1} display="block">

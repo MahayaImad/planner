@@ -26,6 +26,7 @@ from ..models.schedule import Lecon
 from ..models.subject import Matiere
 from ..models.task import TacheGeneration
 from ..models.teacher import Professeur
+from . import parametres
 from ..schemas.schedule import GenererRequest
 
 from solver import (
@@ -86,7 +87,17 @@ def preparer(requete: GenererRequest, ecole_id: int, db: Session):
     if not db_professeurs:
         raise HTTPException(400, "Aucun professeur défini pour cette école")
 
-    grille = construire_grille(requete.grille)
+    # Tout ce que la requête ne précise pas vient des réglages
+    # enregistrés : le client n'a normalement à envoyer que les cours.
+    reglages = parametres.lire(db, ecole_id)
+    config_grille = requete.grille or reglages.grille
+    poids = requete.ponderations or reglages.ponderations
+    presence = (requete.presence_minimale if requete.presence_minimale is not None
+                else reglages.presence_minimale)
+    type_ordinaire = requete.type_salle_ordinaire or reglages.type_salle_ordinaire
+    limite = requete.limite_secondes or reglages.limite_secondes
+
+    grille = construire_grille(config_grille)
     creneau_par_horaire = {(c.jour, c.heure_debut): c.id for c in grille.creneaux}
     tous_creneaux = {c.id for c in grille.creneaux}
 
@@ -111,7 +122,7 @@ def preparer(requete: GenererRequest, ecole_id: int, db: Session):
             matieres_ids=[m.id for m in p.matieres],
             creneaux_disponibles=tous_creneaux - bloques.get(p.id, set()),
             max_heures_consecutives=p.max_heures_consecutives,
-            max_heures_par_jour=p.max_heures_par_jour or len(requete.grille.horaires),
+            max_heures_par_jour=p.max_heures_par_jour or len(config_grille.horaires),
             max_heures_par_semaine=p.max_heures_par_semaine,
             assure_permanences=bool(p.assure_permanences),
         )
@@ -120,7 +131,7 @@ def preparer(requete: GenererRequest, ecole_id: int, db: Session):
     classes = [SClasse(id=c.id, nom=c.nom, niveau=c.niveau, effectif=c.effectif,
                        salle_attitree_id=c.salle_attitree_id,
                        max_heures_par_jour=(c.max_heures_par_jour
-                                            or len(requete.grille.horaires)))
+                                            or len(config_grille.horaires)))
                for c in db_classes]
 
     ids_classes = {c.id for c in db_classes}
@@ -148,18 +159,23 @@ def preparer(requete: GenererRequest, ecole_id: int, db: Session):
             groupe=cr.groupe,
         ))
 
+    if requete.fenetres_pedagogiques is not None:
+        declarees = [f.model_dump() for f in requete.fenetres_pedagogiques]
+    else:
+        declarees = parametres.fenetres(db, ecole_id)
     fenetres = [
-        SFenetre(matiere_id=f.matiere_id, index_jour=f.index_jour,
-                 seances_bloquees=set(f.seances_bloquees), libelle=f.libelle)
-        for f in requete.fenetres_pedagogiques
+        SFenetre(matiere_id=f["matiere_id"], index_jour=f["index_jour"],
+                 seances_bloquees=set(f["seances_bloquees"]),
+                 libelle=f.get("libelle") or "")
+        for f in declarees
     ]
     options = Options(
-        limite_secondes=requete.limite_secondes,
-        presence_minimale=dict(requete.presence_minimale),
-        type_salle_ordinaire=requete.type_salle_ordinaire,
+        limite_secondes=min(limite, settings.LIMITE_SECONDES_MAX),
+        presence_minimale=dict(presence),
+        type_salle_ordinaire=type_ordinaire,
         nb_workers=settings.SOLVEUR_THREADS,
     )
-    ponderations = Ponderations(**requete.ponderations.model_dump())
+    ponderations = Ponderations(**poids.model_dump())
     return (grille, salles, matieres, professeurs, classes, cours,
             fenetres, options, ponderations)
 

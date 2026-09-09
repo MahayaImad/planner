@@ -75,6 +75,22 @@ export const classesApi = {
   supprimer: (id) => api.delete(`/classes/${id}`),
 };
 
+// ── Réglages de planification ──────────────────────────────────────
+// Grille horaire, pondérations et présence minimale sont enregistrés par
+// établissement : la génération les reprend quand la requête ne les
+// précise pas.
+export const parametresApi = {
+  lire: () => api.get("/parametres"),
+  enregistrer: (data) => api.put("/parametres", data),
+};
+
+// ── Fenêtres pédagogiques (journées d'inspection) ──────────────────
+export const fenetresApi = {
+  liste: () => api.get("/fenetres-pedagogiques"),
+  creer: (data) => api.post("/fenetres-pedagogiques", data),
+  supprimer: (id) => api.delete(`/fenetres-pedagogiques/${id}`),
+};
+
 // ── Données de démonstration ───────────────────────────────────────
 export const demoApi = {
   // Décrit le jeu sans rien créer.

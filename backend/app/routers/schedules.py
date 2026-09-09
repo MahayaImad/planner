@@ -190,9 +190,11 @@ def generer(
         )
 
     # Borner le temps de calcul : sans plafond, un client peut
-    # immobiliser une place du pool pendant des heures.
-    requete.limite_secondes = max(
-        1, min(requete.limite_secondes, settings.LIMITE_SECONDES_MAX))
+    # immobiliser une place du pool pendant des heures. La valeur nulle
+    # signifie « reprendre celle des réglages », résolue à la préparation.
+    if requete.limite_secondes is not None:
+        requete.limite_secondes = max(
+            1, min(requete.limite_secondes, settings.LIMITE_SECONDES_MAX))
 
     # Refuser tout de suite des données incohérentes : inutile
     # d'occuper un worker pour un problème insoluble.

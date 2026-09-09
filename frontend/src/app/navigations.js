@@ -7,6 +7,7 @@ const navigations = [
   { name: "Classes", path: "/classes", icon: "school" },
   { label: "PLANIFICATION", type: "label" },
   { name: "Emplois du temps", path: "/emplois-du-temps", icon: "calendar_today" },
+  { name: "Réglages", path: "/parametres", icon: "tune" },
 ];
 
 export default navigations;

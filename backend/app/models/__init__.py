@@ -7,3 +7,4 @@ from .class_ import Classe
 from .schedule import EmploiDuTemps, Lecon
 from .availability import DisponibiliteProfesseur
 from .task import TacheGeneration
+from .settings import ParametresEtablissement, FenetrePedagogique

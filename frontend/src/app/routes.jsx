@@ -7,6 +7,7 @@ import MatxLayout from "./components/MatxLayout/MatxLayout";
 import sessionRoutes from "./views/sessions/session-routes";
 
 const Dashboard       = Loadable(lazy(() => import("app/views/dashboard/Dashboard")));
+const Parametres      = Loadable(lazy(() => import("app/views/parametres/ParametresPage")));
 const Professeurs     = Loadable(lazy(() => import("app/views/professeurs/ProfesseursList")));
 const Matieres        = Loadable(lazy(() => import("app/views/matieres/MatieresList")));
 const Salles          = Loadable(lazy(() => import("app/views/salles/SallesList")));
@@ -24,6 +25,7 @@ const routes = [
     ),
     children: [
       { path: "/dashboard",         element: <Dashboard /> },
+      { path: "/parametres",        element: <Parametres /> },
       { path: "/professeurs",       element: <Professeurs /> },
       { path: "/matieres",          element: <Matieres /> },
       { path: "/salles",            element: <Salles /> },

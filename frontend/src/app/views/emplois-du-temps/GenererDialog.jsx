@@ -21,10 +21,14 @@ import LinearProgress from "@mui/material/LinearProgress";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useSnackbar } from "notistack";
 import { edtApi, demoApi } from "app/services/api";
+import Tooltip from "@mui/material/Tooltip";
 
 const EMPTY_COURS = {
   classe_id: "", matiere_id: "", professeur_id: "",
   heures_par_semaine: 2, nb_seances_doubles: 0, max_heures_par_jour: 2,
+  // Fouj : deux lignes partageant un couplage_id sont enseignées en
+  // même temps à deux demi-groupes de la classe.
+  couplage_id: null, groupe: "",
 };
 
 const INTERVALLE_SUIVI = 1500; // ms entre deux interrogations de la tâche
@@ -52,8 +56,12 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
       heures_par_semaine: +c.heures_par_semaine,
       nb_seances_doubles: +c.nb_seances_doubles || 0,
       max_heures_par_jour: +c.max_heures_par_jour || 2,
+      couplage_id: c.couplage_id,
+      groupe: c.groupe,
     })),
     limite_secondes: +limiteSec,
+    // Grille, fenêtres pédagogiques et pondérations ne sont pas envoyées :
+    // la génération reprend les réglages enregistrés de l'établissement.
   });
 
   const champsManquants = () =>
@@ -145,6 +153,51 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
 
   const addCours = () => setCours((prev) => [...prev, { ...EMPTY_COURS }]);
   const removeCours = (i) => setCours((prev) => prev.filter((_, idx) => idx !== i));
+
+  /**
+   * Fouj : la classe est dédoublée et les deux demi-groupes suivent
+   * DEUX cours différents au MÊME créneau, avec deux professeurs et
+   * deux salles. Apparier la ligne i avec la suivante crée le couple.
+   */
+  const apparier = (i) => {
+    setCours((prev) => {
+      const a = prev[i];
+      const suite = [...prev];
+      const identifiant = `fouj-${Date.now()}-${i}`;
+      const modele = {
+        ...EMPTY_COURS,
+        classe_id: a.classe_id,
+        heures_par_semaine: a.heures_par_semaine,
+        nb_seances_doubles: a.nb_seances_doubles,
+        max_heures_par_jour: a.max_heures_par_jour,
+        couplage_id: identifiant,
+        groupe: "G2",
+      };
+      suite[i] = { ...a, couplage_id: identifiant, groupe: "G1" };
+      suite.splice(i + 1, 0, modele);
+      return suite;
+    });
+  };
+
+  const detacher = (i) => {
+    setCours((prev) => {
+      const identifiant = prev[i].couplage_id;
+      return prev
+        .filter((c, idx) => !(idx !== i && c.couplage_id === identifiant))
+        .map((c) => (c.couplage_id === identifiant
+          ? { ...c, couplage_id: null, groupe: "" } : c));
+    });
+  };
+
+  /** Volume et créneau d'un fouj sont portés par le premier demi-groupe. */
+  const majCouple = (i, field, val) => {
+    setCours((prev) => {
+      const identifiant = prev[i].couplage_id;
+      return prev.map((c, idx) =>
+        idx === i || (identifiant && c.couplage_id === identifiant)
+          ? { ...c, [field]: val } : c);
+    });
+  };
 
   const handleGenerer = async () => {
     setErreur(null); setErreursDonnees([]); setAvertissements([]); setTache(null);
@@ -251,10 +304,29 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
         {cours.map((c, i) => (
           <Box key={i} mb={2}>
             <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-              <Typography variant="caption" fontWeight={700} color="primary">
-                Cours #{i + 1}
+              <Typography variant="caption" fontWeight={700}
+                          color={c.couplage_id ? "secondary" : "primary"}>
+                {c.couplage_id ? `Fouj — demi-groupe ${c.groupe}` : `Cours #${i + 1}`}
               </Typography>
-              {cours.length > 1 && (
+
+              {!c.couplage_id && (
+                <Tooltip title="Dédoubler : la classe se scinde en deux
+                                 demi-groupes qui suivent deux cours
+                                 différents au même créneau">
+                  <IconButton size="small" color="secondary" onClick={() => apparier(i)}>
+                    <Icon fontSize="small">call_split</Icon>
+                  </IconButton>
+                </Tooltip>
+              )}
+              {c.couplage_id && c.groupe === "G1" && (
+                <Tooltip title="Annuler le dédoublement">
+                  <IconButton size="small" onClick={() => detacher(i)}>
+                    <Icon fontSize="small">link_off</Icon>
+                  </IconButton>
+                </Tooltip>
+              )}
+
+              {cours.length > 1 && !c.couplage_id && (
                 <IconButton size="small" color="error" onClick={() => removeCours(i)}>
                   <Icon fontSize="small">remove_circle</Icon>
                 </IconButton>
@@ -263,7 +335,8 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
             <Box display="grid" sx={{ gridTemplateColumns: "1fr 1fr 1fr 100px 100px", gap: 1.5 }}>
               <TextField
                 select size="small" label="Classe" required
-                value={c.classe_id} onChange={(e) => updateCours(i, "classe_id", e.target.value)}
+                disabled={c.groupe === "G2"}
+                value={c.classe_id} onChange={(e) => majCouple(i, "classe_id", e.target.value)}
               >
                 {classes.map((cl) => <MenuItem key={cl.id} value={cl.id}>{cl.nom}</MenuItem>)}
               </TextField>
@@ -285,17 +358,27 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
                 type="number" size="small" label="Blocs 2h"
                 title="Nombre de séances de 2 h accolées à réserver dans le volume"
                 inputProps={{ min: 0, max: 10 }}
+                disabled={c.groupe === "G2"}
                 value={c.nb_seances_doubles}
-                onChange={(e) => updateCours(i, "nb_seances_doubles", e.target.value)}
+                onChange={(e) => majCouple(i, "nb_seances_doubles", e.target.value)}
               />
               <TextField
                 type="number" size="small" label="H/sem."
                 inputProps={{ min: 1, max: 20 }}
+                disabled={c.groupe === "G2"}
                 value={c.heures_par_semaine}
-                onChange={(e) => updateCours(i, "heures_par_semaine", e.target.value)}
+                onChange={(e) => majCouple(i, "heures_par_semaine", e.target.value)}
               />
             </Box>
-            {i < cours.length - 1 && <Divider sx={{ mt: 2 }} />}
+            {c.groupe === "G2" && (
+              <Typography variant="caption" color="text.secondary"
+                          display="block" mt={0.5}>
+                Ces deux cours occupent le même créneau : la moitié de la
+                classe suit l'un, l'autre moitié suit l'autre. Il faut donc
+                deux salles disponibles en même temps.
+              </Typography>
+            )}
+            {i < cours.length - 1 && !(c.groupe === "G1") && <Divider sx={{ mt: 2 }} />}
           </Box>
         ))}
 

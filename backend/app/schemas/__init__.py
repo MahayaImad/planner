@@ -11,3 +11,6 @@ from .schedule import (
     TacheRead,
 )
 from .availability import DisponibiliteCreate, DisponibiliteRead
+from .settings import (
+    ParametresRead, ParametresUpdate, FenetreCreate, FenetreRead,
+)

@@ -382,6 +382,139 @@ def test_demonstration_programme_absent_est_signale():
     assert "démonstration" in reponse.json()["detail"]
 
 
+# ══════════════════════════════════════════════════════════════════
+#  Réglages persistés, fenêtres pédagogiques et fouj
+# ══════════════════════════════════════════════════════════════════
+
+def test_parametres_valeurs_par_defaut_sans_reglage():
+    entetes, *_ = _etablissement("param-defaut")
+    p = client.get("/parametres", headers=entetes).json()
+    assert p["grille"]["jours"][0] == "Dimanche"
+    assert len(p["grille"]["horaires"]) == 7
+    assert p["grille"]["fermetures"] == []
+    assert p["ponderations"]["penalites_seance"]["6"] == 150
+
+
+def test_parametres_enregistres_et_relus():
+    entetes, *_ = _etablissement("param-ecrit")
+    grille = client.get("/parametres", headers=entetes).json()["grille"]
+    grille["fermetures"] = [[2, [4, 5, 6]]]
+
+    r = client.put("/parametres", json={
+        "grille": grille,
+        "presence_minimale": {"matin": 3},
+        "limite_secondes": 45,
+    }, headers=entetes)
+    assert r.status_code == 200, r.text
+
+    relu = client.get("/parametres", headers=entetes).json()
+    assert relu["grille"]["fermetures"] == [[2, [4, 5, 6]]]
+    assert relu["presence_minimale"] == {"matin": 3}
+    assert relu["limite_secondes"] == 45
+
+
+def test_grille_incoherente_est_refusee():
+    """Une grille invalide rendrait toute génération impossible sans que
+    la cause soit visible."""
+    entetes, *_ = _etablissement("param-invalide")
+    grille = client.get("/parametres", headers=entetes).json()["grille"]
+
+    # Une séance qui n'appartient à aucune demi-journée.
+    casse = dict(grille, shifts=[["matin", [0, 1, 2, 3]], ["apres-midi", [4, 5]]])
+    r = client.put("/parametres", json={"grille": casse}, headers=entetes)
+    assert r.status_code == 422 and "demi-journée" in r.json()["detail"]
+
+    # Aucun jour travaillé.
+    r = client.put("/parametres", json={"grille": dict(grille, jours=[])},
+                   headers=entetes)
+    assert r.status_code == 422
+
+
+def test_generation_reprend_les_reglages_enregistres():
+    """Le client n'envoie que les cours ; le reste vient des réglages."""
+    entetes, matieres, classes, profs, edt = _etablissement("param-generation")
+    grille = client.get("/parametres", headers=entetes).json()["grille"]
+    grille["fermetures"] = [[2, [4, 5, 6]]]          # mardi après-midi fermé
+    client.put("/parametres", json={"grille": grille}, headers=entetes)
+
+    # Fenêtre : pas de sport le dimanche matin.
+    fenetre = client.post("/fenetres-pedagogiques", json={
+        "matiere_id": matieres["Sport"], "index_jour": 0,
+        "seances_bloquees": [0, 1, 2, 3], "libelle": "Inspection EPS"},
+        headers=entetes)
+    assert fenetre.status_code == 201, fenetre.text
+
+    demande = {"cours_requis": _demande(matieres, classes, profs)["cours_requis"],
+               "limite_secondes": 30}
+    tache = client.post(f"/emplois-du-temps/{edt}/generer", json=demande,
+                        headers=entetes)
+    assert tache.status_code == 202, tache.text
+    etat = _attendre(entetes, edt, tache.json()["id"], delai=90)
+    assert etat["statut"] == "terminee", etat["message"]
+
+    lecons = client.get(f"/emplois-du-temps/{edt}/lecons", headers=entetes).json()
+    # La fermeture enregistrée a été appliquée.
+    assert not [l for l in lecons if l["jour"] == "Mardi" and l["heure_debut"] >= "13:00"]
+    # La fenêtre pédagogique aussi.
+    sport = [l for l in lecons if l["matiere_nom"] == "Sport"]
+    assert sport and not [l for l in sport
+                          if l["jour"] == "Dimanche" and l["heure_debut"] < "12:00"]
+
+
+def test_fenetre_en_double_est_refusee():
+    entetes, matieres, *_ = _etablissement("fenetre-double")
+    corps = {"matiere_id": matieres["Maths"], "index_jour": 1,
+             "seances_bloquees": [0, 1]}
+    assert client.post("/fenetres-pedagogiques", json=corps,
+                       headers=entetes).status_code == 201
+    r = client.post("/fenetres-pedagogiques", json=corps, headers=entetes)
+    assert r.status_code == 409
+
+    liste = client.get("/fenetres-pedagogiques", headers=entetes).json()
+    assert len(liste) == 1 and liste[0]["seances_bloquees"] == [0, 1]
+    client.delete(f"/fenetres-pedagogiques/{liste[0]['id']}", headers=entetes)
+    assert client.get("/fenetres-pedagogiques", headers=entetes).json() == []
+
+
+def test_fouj_deux_demi_groupes_au_meme_creneau():
+    """Les deux moitiés d'une classe suivent deux cours simultanés, dans
+    deux salles et avec deux enseignants distincts."""
+    entetes, matieres, classes, profs, edt = _etablissement("fouj")
+    classe = classes[0]
+    couplage = "fouj-maths-francais"
+    cours = [
+        {"classe_id": classe, "matiere_id": matieres["Maths"],
+         "professeur_id": profs["Maths"][0], "heures_par_semaine": 2,
+         "nb_seances_doubles": 0, "max_heures_par_jour": 1,
+         "couplage_id": couplage, "groupe": "G1"},
+        {"classe_id": classe, "matiere_id": matieres["Français"],
+         "professeur_id": profs["Français"][0], "heures_par_semaine": 2,
+         "nb_seances_doubles": 0, "max_heures_par_jour": 1,
+         "couplage_id": couplage, "groupe": "G2"},
+        {"classe_id": classe, "matiere_id": matieres["Arabe"],
+         "professeur_id": profs["Arabe"][0], "heures_par_semaine": 3},
+    ]
+    tache = client.post(f"/emplois-du-temps/{edt}/generer",
+                        json={"cours_requis": cours, "limite_secondes": 30},
+                        headers=entetes)
+    assert tache.status_code == 202, tache.text
+    etat = _attendre(entetes, edt, tache.json()["id"], delai=90)
+    assert etat["statut"] == "terminee", etat["message"]
+
+    lecons = client.get(f"/emplois-du-temps/{edt}/lecons", headers=entetes).json()
+    maths = {(l["jour"], l["heure_debut"]) for l in lecons
+             if l["matiere_nom"] == "Maths"}
+    francais = {(l["jour"], l["heure_debut"]) for l in lecons
+                if l["matiere_nom"] == "Français"}
+    assert maths and maths == francais, (maths, francais)
+
+    # Même créneau, mais jamais la même salle.
+    for jour, heure in maths:
+        salles = {l["salle_id"] for l in lecons
+                  if (l["jour"], l["heure_debut"]) == (jour, heure)}
+        assert len(salles) == 2, f"{jour} {heure} : {salles}"
+
+
 if __name__ == "__main__":
     echecs = 0
     for nom, fonction in sorted(globals().items()):

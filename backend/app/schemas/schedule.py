@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+
+from .settings import GrilleInput, PonderationsInput
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
@@ -19,21 +21,6 @@ class CoursRequisInput(BaseModel):
     groupe: str = ""
 
 
-class GrilleInput(BaseModel):
-    """Grille horaire de l'établissement."""
-    jours: List[str] = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"]
-    horaires: List[Tuple[str, str]] = [
-        ("08:00", "08:55"), ("09:00", "09:55"), ("10:05", "11:00"),
-        ("11:05", "12:00"), ("13:00", "13:55"), ("14:00", "14:55"),
-        ("15:05", "16:00"),
-    ]
-    shifts: List[Tuple[str, List[int]]] = [
-        ("matin", [0, 1, 2, 3]), ("apres-midi", [4, 5, 6]),
-    ]
-    # Fermetures officielles : (index du jour, [index de séances]).
-    fermetures: List[Tuple[int, List[int]]] = []
-
-
 class FenetreInput(BaseModel):
     """Matière interdite sur une plage (journée d'inspection)."""
     matiere_id: int
@@ -42,32 +29,21 @@ class FenetreInput(BaseModel):
     libelle: str = ""
 
 
-class PonderationsInput(BaseModel):
-    """Poids des contraintes souples, arbitrés par l'établissement."""
-    trous_professeurs: int = 6
-    trous_doubles_professeurs: int = 25
-    heure_isolee_professeur: int = 12
-    jours_presence_professeurs: int = 3
-    recompense_permanence: int = 4
-    # Coût d'occupation par séance, indexée à partir de 0 : la séance
-    # « slot_N » de l'établissement porte l'index N-1.
-    penalites_seance: Dict[int, int] = {0: 20, 3: 8, 4: 10, 5: 30, 6: 150}
-    equite_derniere_seance: int = 25
-    seance_soumise_a_equite: int = 6
-    equilibrage_charge_classes: int = 4
-    demi_journees_travaillees_classes: int = 0
-    matieres_lourdes_apres_midi: int = 0
-
-
 class GenererRequest(BaseModel):
-    """Corps de la requête POST /emplois-du-temps/{id}/generer."""
+    """
+    Corps de la requête POST /emplois-du-temps/{id}/generer.
+
+    Tout ce qui n'est pas fourni est repris des réglages enregistrés de
+    l'établissement : le client n'a normalement à envoyer que la liste
+    des cours.
+    """
     cours_requis: List[CoursRequisInput]
-    grille: GrilleInput = GrilleInput()
-    fenetres_pedagogiques: List[FenetreInput] = []
-    ponderations: PonderationsInput = PonderationsInput()
-    presence_minimale: Dict[str, int] = {}
-    type_salle_ordinaire: str = "classique"
-    limite_secondes: int = 120
+    grille: Optional[GrilleInput] = None
+    fenetres_pedagogiques: Optional[List[FenetreInput]] = None
+    ponderations: Optional[PonderationsInput] = None
+    presence_minimale: Optional[Dict[str, int]] = None
+    type_salle_ordinaire: Optional[str] = None
+    limite_secondes: Optional[int] = None
 
 
 class DiagnosticResponse(BaseModel):

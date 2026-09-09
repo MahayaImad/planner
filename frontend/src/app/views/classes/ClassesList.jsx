@@ -18,7 +18,7 @@ import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import { styled } from "@mui/material/styles";
 import { useSnackbar } from "notistack";
-import { classesApi } from "app/services/api";
+import { classesApi, sallesApi } from "app/services/api";
 import CrudDialog from "app/components/CrudDialog";
 
 const ContentBox = styled(Box)(({ theme }) => ({
@@ -32,7 +32,10 @@ const NIVEAUX = [
   { value: "secondaire", label: "Secondaire (Lycée)", color: "#9c27b0" },
 ];
 
-const EMPTY = { nom: "", niveau: "moyen", effectif: 30 };
+const EMPTY = {
+  nom: "", niveau: "moyen", effectif: 30,
+  salle_attitree_id: "", max_heures_par_jour: 6,
+};
 
 export default function ClassesList() {
   const { enqueueSnackbar } = useSnackbar();
@@ -42,6 +45,8 @@ export default function ClassesList() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  // Les salles alimentent le choix de la salle attitrée.
+  const [salles, setSalles] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,12 +54,19 @@ export default function ClassesList() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    sallesApi.liste().then(({ data }) => setSalles(data)).catch(() => {});
+  }, [load]);
 
   const openCreate = () => { setEditing(null); setForm(EMPTY); setDialogOpen(true); };
   const openEdit = (row) => {
     setEditing(row);
-    setForm({ nom: row.nom, niveau: row.niveau, effectif: row.effectif });
+    setForm({
+      nom: row.nom, niveau: row.niveau, effectif: row.effectif,
+      salle_attitree_id: row.salle_attitree_id ?? "",
+      max_heures_par_jour: row.max_heures_par_jour ?? 6,
+    });
     setDialogOpen(true);
   };
 
@@ -62,7 +74,11 @@ export default function ClassesList() {
     e.preventDefault();
     setSaving(true);
     try {
-      editing ? await classesApi.modifier(editing.id, form) : await classesApi.creer(form);
+      // Le sélecteur rend une chaîne vide quand aucune salle n'est
+      // choisie ; l'API attend une absence de valeur.
+      const charge = { ...form, salle_attitree_id: form.salle_attitree_id || null };
+      editing ? await classesApi.modifier(editing.id, charge)
+              : await classesApi.creer(charge);
       enqueueSnackbar(editing ? "Classe modifiée" : "Classe ajoutée", { variant: "success" });
       setDialogOpen(false); load();
     } catch { enqueueSnackbar("Erreur lors de l'enregistrement", { variant: "error" }); }
@@ -178,6 +194,28 @@ export default function ClassesList() {
           label="Effectif (nb élèves)" type="number" fullWidth size="small"
           inputProps={{ min: 1, max: 60 }}
           value={form.effectif} onChange={(e) => setForm({ ...form, effectif: +e.target.value })}
+        />
+        <TextField
+          select label="Salle attitrée" fullWidth size="small"
+          helperText="La division y reste toute la semaine et ne se déplace que
+                      pour le laboratoire, l'informatique ou le sport."
+          value={form.salle_attitree_id}
+          onChange={(e) => setForm({ ...form, salle_attitree_id: e.target.value })}
+        >
+          <MenuItem value=""><em>Aucune — la classe changera de salle</em></MenuItem>
+          {salles.filter((s) => s.type === "classique").map((s) => (
+            <MenuItem key={s.id} value={s.id}>
+              {s.nom} — {s.capacite} places
+              {s.capacite < form.effectif ? " ⚠ trop petite" : ""}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          label="Heures de cours maximum par jour" type="number" fullWidth size="small"
+          inputProps={{ min: 1, max: 12 }}
+          helperText="Amplitude quotidienne de la division."
+          value={form.max_heures_par_jour}
+          onChange={(e) => setForm({ ...form, max_heures_par_jour: +e.target.value })}
         />
       </CrudDialog>
     </ContentBox>
