@@ -370,10 +370,20 @@ class Ponderations:
     recompense_permanence: int = 4
 
     # ── Journée des élèves ────────────────────────────────────────
-    # Coût d'occupation par séance OFFICIELLE de la journée.
-    # Par défaut : sortie tardive de plus en plus pénalisée.
+    # Coût d'OCCUPATION de chaque séance de la journée, indexée à partir
+    # de 0. La séance nommée « slot_N » par l'établissement porte donc
+    # l'index N-1 :
+    #
+    #   index 0  (slot 1, 08:00) démarrage matinal, à éviter
+    #   index 3  (slot 4, 11:05) prolonge la matinée jusqu'à midi
+    #   index 4  (slot 5, 13:00) reprise immédiate après le déjeuner
+    #   index 5  (slot 6, 14:00) après-midi qui s'étire
+    #   index 6  (slot 7, 15:05) dernière séance, la plus pénalisée
+    #
+    # Les séances 2 et 3 (09:00 et 10:05) ne coûtent rien : c'est le
+    # cœur de matinée, le moment le plus favorable aux apprentissages.
     penalites_seance: Dict[int, int] = field(
-        default_factory=lambda: {4: 10, 5: 30, 6: 80})
+        default_factory=lambda: {0: 20, 3: 8, 4: 10, 5: 30, 6: 150})
     # Répartir équitablement les dernières séances entre les classes :
     # aucune division ne doit hériter de toutes les fins tardives.
     equite_derniere_seance: int = 25

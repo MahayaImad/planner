@@ -49,7 +49,9 @@ class PonderationsInput(BaseModel):
     heure_isolee_professeur: int = 12
     jours_presence_professeurs: int = 3
     recompense_permanence: int = 4
-    penalites_seance: Dict[int, int] = {4: 10, 5: 30, 6: 80}
+    # Coût d'occupation par séance, indexée à partir de 0 : la séance
+    # « slot_N » de l'établissement porte l'index N-1.
+    penalites_seance: Dict[int, int] = {0: 20, 3: 8, 4: 10, 5: 30, 6: 150}
     equite_derniere_seance: int = 25
     seance_soumise_a_equite: int = 6
     equilibrage_charge_classes: int = 4
