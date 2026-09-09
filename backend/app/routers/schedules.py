@@ -2,9 +2,15 @@
 Routes emplois du temps + déclenchement du solveur CP-SAT.
 """
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+
+from ..config import settings
+from ..models.task import TacheGeneration
+from ..services import generation
 
 from ..database import get_db
 from ..deps import get_utilisateur_courant
@@ -16,39 +22,11 @@ from ..models.class_ import Classe
 from ..models.schedule import EmploiDuTemps, Lecon
 from ..models.availability import DisponibiliteProfesseur
 from ..schemas import (
-    EmploiDuTempsCreate, EmploiDuTempsRead, LeconRead, GenererRequest
+    EmploiDuTempsCreate, EmploiDuTempsRead, LeconRead, GenererRequest,
+    DiagnosticResponse, TacheRead,
 )
-
-# Solveur Phase 1
-from solver.models import (
-    Creneau as SCreneau,
-    Salle as SSalle,
-    Matiere as SMatiere,
-    Professeur as SProfesseur,
-    Classe as SClasse,
-    CoursRequis as SCoursRequis,
-)
-from solver.solveur import SolveurEmploiDuTemps
 
 router = APIRouter(prefix="/emplois-du-temps", tags=["Emplois du temps"])
-
-# Créneaux horaires fixes (semaine algérienne Samedi→Jeudi)
-JOURS = ["Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"]
-HEURES = [
-    ("08:00", "09:00"), ("09:00", "10:00"), ("10:00", "11:00"), ("11:00", "12:00"),
-    ("13:00", "14:00"), ("14:00", "15:00"), ("15:00", "16:00"), ("16:00", "17:00"),
-]
-
-
-def _build_creneaux() -> List[SCreneau]:
-    creneaux = []
-    cid = 1
-    for jour in JOURS:
-        for heure_debut, heure_fin in HEURES:
-            creneaux.append(SCreneau(id=cid, jour=jour, heure_debut=heure_debut, heure_fin=heure_fin))
-            cid += 1
-    return creneaux
-
 
 def _get_edt_ou_404(edt_id: int, ecole_id: int, db: Session) -> EmploiDuTemps:
     edt = db.query(EmploiDuTemps).filter(
@@ -129,9 +107,62 @@ def lister_lecons(
     return lecons
 
 
-# ── Génération automatique ─────────────────────────────────────────
+# ── Contrôle des données, sans résolution ──────────────────────
 
-@router.post("/{edt_id}/generer", response_model=dict)
+@router.post("/{edt_id}/diagnostic", response_model=DiagnosticResponse)
+def controler(
+    edt_id: int,
+    requete: GenererRequest,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """
+    Vérifie la cohérence des données AVANT de lancer le calcul.
+
+    Le responsable corrige ses saisies immédiatement au lieu d'attendre
+    plusieurs minutes pour découvrir que le problème était insoluble.
+    """
+    _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
+    erreurs, avertissements = generation.controler(requete, utilisateur.ecole_id, db)
+    return DiagnosticResponse(
+        erreurs=erreurs, avertissements=avertissements, realisable=not erreurs,
+    )
+
+
+# ── Génération en arrière-plan ─────────────────────────────────
+
+def _tache_en_dict(tache: TacheGeneration) -> dict:
+    return {
+        "id": tache.id,
+        "emploi_du_temps_id": tache.emploi_du_temps_id,
+        "statut": tache.statut,
+        "message": tache.message,
+        "cout_courant": tache.cout_courant,
+        "nb_solutions": tache.nb_solutions or 0,
+        "lecons_planifiees": tache.lecons_planifiees or 0,
+        "resultat": json.loads(tache.resultat) if tache.resultat else None,
+        "erreurs": json.loads(tache.erreurs) if tache.erreurs else [],
+        "created_at": tache.created_at,
+        "started_at": tache.started_at,
+        "finished_at": tache.finished_at,
+        "terminee": tache.statut in TacheGeneration.STATUTS_FINAUX,
+    }
+
+
+def _get_tache_ou_404(tache_id: int, edt_id: int, ecole_id: int,
+                      db: Session) -> TacheGeneration:
+    tache = db.query(TacheGeneration).filter(
+        TacheGeneration.id == tache_id,
+        TacheGeneration.emploi_du_temps_id == edt_id,
+        TacheGeneration.ecole_id == ecole_id,
+    ).first()
+    if not tache:
+        raise HTTPException(status_code=404, detail="Tâche introuvable")
+    return tache
+
+
+@router.post("/{edt_id}/generer", response_model=TacheRead,
+             status_code=status.HTTP_202_ACCEPTED)
 def generer(
     edt_id: int,
     requete: GenererRequest,
@@ -139,123 +170,104 @@ def generer(
     utilisateur: Utilisateur = Depends(get_utilisateur_courant),
 ):
     """
-    Déclenche le solveur CP-SAT pour remplir l'emploi du temps.
-    Supprime les leçons existantes et les remplace par la solution.
+    Met une génération en file d'attente et rend la main immédiatement.
+
+    Une résolution dure de quelques secondes à plusieurs minutes : la
+    réponse porte l'identifiant de la tâche, que le client interroge
+    ensuite pour suivre l'avancement.
     """
-    edt = _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
-    ecole_id = utilisateur.ecole_id
+    _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
 
-    # Charger les entités de l'école depuis la DB
-    db_professeurs = db.query(Professeur).filter(Professeur.ecole_id == ecole_id).all()
-    db_matieres = db.query(Matiere).filter(Matiere.ecole_id == ecole_id).all()
-    db_salles = db.query(Salle).filter(Salle.ecole_id == ecole_id).all()
-    db_classes = db.query(Classe).filter(Classe.ecole_id == ecole_id).all()
-
-    if not db_salles:
-        raise HTTPException(status_code=400, detail="Aucune salle définie pour cette école")
-    if not db_professeurs:
-        raise HTTPException(status_code=400, detail="Aucun professeur défini pour cette école")
-
-    # Construire les indisponibilités : créneau_id → prof_ids indisponibles
-    creneaux = _build_creneaux()
-    creneau_map = {(c.jour, c.heure_debut): c.id for c in creneaux}
-
-    # Disponibilités par prof
-    dispo_par_prof = {}
-    for prof in db_professeurs:
-        indispos = db.query(DisponibiliteProfesseur).filter(
-            DisponibiliteProfesseur.professeur_id == prof.id,
-            DisponibiliteProfesseur.disponible == 0,
-        ).all()
-        creneaux_indispo = set()
-        for d in indispos:
-            cid = creneau_map.get((d.jour, d.heure_debut))
-            if cid:
-                creneaux_indispo.add(cid)
-        # creneaux_disponibles = tous les créneaux sauf les indisponibles
-        dispo_par_prof[prof.id] = set(c.id for c in creneaux) - creneaux_indispo
-
-    # Convertir en objets solveur
-    s_creneaux = creneaux
-    s_salles = [SSalle(id=s.id, nom=s.nom, capacite=s.capacite, type=s.type) for s in db_salles]
-    s_matieres = [SMatiere(id=m.id, nom=m.nom, coefficient=m.coefficient) for m in db_matieres]
-    s_professeurs = [
-        SProfesseur(
-            id=p.id, nom=p.nom, prenom=p.prenom,
-            matieres_ids=[m.id for m in p.matieres],
-            creneaux_disponibles=dispo_par_prof.get(p.id, set()),
-            max_heures_consecutives=p.max_heures_consecutives,
+    en_cours = db.query(TacheGeneration).filter(
+        TacheGeneration.emploi_du_temps_id == edt_id,
+        TacheGeneration.statut.notin_(TacheGeneration.STATUTS_FINAUX),
+    ).first()
+    if en_cours:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Une génération est déjà en cours (tâche {en_cours.id}). "
+                   f"Attendez la fin ou annulez-la.",
         )
-        for p in db_professeurs
-    ]
-    s_classes = [SClasse(id=c.id, nom=c.nom, niveau=c.niveau, effectif=c.effectif) for c in db_classes]
 
-    # Valider les cours requis de la requête
-    ids_classes = {c.id for c in db_classes}
-    ids_matieres = {m.id for m in db_matieres}
-    ids_profs = {p.id for p in db_professeurs}
+    # Borner le temps de calcul : sans plafond, un client peut
+    # immobiliser une place du pool pendant des heures.
+    requete.limite_secondes = max(
+        1, min(requete.limite_secondes, settings.LIMITE_SECONDES_MAX))
 
-    s_cours = []
-    for i, cr in enumerate(requete.cours_requis, start=1):
-        if cr.classe_id not in ids_classes:
-            raise HTTPException(status_code=400, detail=f"Classe {cr.classe_id} introuvable")
-        if cr.matiere_id not in ids_matieres:
-            raise HTTPException(status_code=400, detail=f"Matière {cr.matiere_id} introuvable")
-        if cr.professeur_id not in ids_profs:
-            raise HTTPException(status_code=400, detail=f"Professeur {cr.professeur_id} introuvable")
-
-        matiere_db = next(m for m in db_matieres if m.id == cr.matiere_id)
-        s_cours.append(SCoursRequis(
-            id=i,
-            classe_id=cr.classe_id,
-            matiere_id=cr.matiere_id,
-            professeur_id=cr.professeur_id,
-            heures_par_semaine=cr.heures_par_semaine,
-            type_salle_requis=matiere_db.type_salle_requis,
-        ))
-
-    # Lancer le solveur
-    solveur = SolveurEmploiDuTemps(
-        creneaux=s_creneaux,
-        salles=s_salles,
-        matieres=s_matieres,
-        professeurs=s_professeurs,
-        classes=s_classes,
-        cours_requis=s_cours,
-        limite_secondes=requete.limite_secondes,
-    )
-    statut, lecons_solver = solveur.resoudre()
-
-    if statut not in ("OPTIMAL", "FEASIBLE"):
+    # Refuser tout de suite des données incohérentes : inutile
+    # d'occuper un worker pour un problème insoluble.
+    erreurs, _ = generation.controler(requete, utilisateur.ecole_id, db)
+    if erreurs:
         raise HTTPException(
             status_code=422,
-            detail=f"Aucune solution trouvée (statut: {statut}). "
-                   "Vérifiez les disponibilités et le nombre de salles.",
+            detail={"message": "Les données saisies sont incohérentes.",
+                    "erreurs": erreurs},
         )
 
-    # Construire un index créneau_id → (jour, heure_debut, heure_fin)
-    creneau_info = {c.id: c for c in creneaux}
-
-    # Supprimer les anciennes leçons et insérer les nouvelles
-    db.query(Lecon).filter(Lecon.emploi_du_temps_id == edt_id).delete()
-
-    for l in lecons_solver:
-        cr_info = creneau_info[l.creneau_id]
-        db.add(Lecon(
-            emploi_du_temps_id=edt_id,
-            classe_id=l.classe_id,
-            matiere_id=l.matiere_id,
-            professeur_id=l.professeur_id,
-            salle_id=l.salle_id,
-            jour=cr_info.jour,
-            heure_debut=cr_info.heure_debut,
-            heure_fin=cr_info.heure_fin,
-        ))
-
+    tache = TacheGeneration(
+        ecole_id=utilisateur.ecole_id,
+        emploi_du_temps_id=edt_id,
+        statut=TacheGeneration.EN_ATTENTE,
+        message="En attente d'un créneau de calcul…",
+        requete=requete.model_dump_json(),
+    )
+    db.add(tache)
     db.commit()
+    db.refresh(tache)
 
-    return {
-        "statut": statut,
-        "lecons_planifiees": len(lecons_solver),
-        "message": f"Emploi du temps généré avec succès : {len(lecons_solver)} leçons planifiées.",
-    }
+    generation.soumettre(tache.id)
+    return _tache_en_dict(tache)
+
+
+@router.get("/{edt_id}/taches", response_model=List[TacheRead])
+def lister_taches(
+    edt_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """Historique des générations de cet emploi du temps."""
+    _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
+    taches = db.query(TacheGeneration).filter(
+        TacheGeneration.emploi_du_temps_id == edt_id,
+    ).order_by(TacheGeneration.id.desc()).limit(20).all()
+    return [_tache_en_dict(t) for t in taches]
+
+
+@router.get("/{edt_id}/taches/{tache_id}", response_model=TacheRead)
+def lire_tache(
+    edt_id: int,
+    tache_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """Avancement d'une génération. C'est cette route que le client interroge."""
+    tache = _get_tache_ou_404(tache_id, edt_id, utilisateur.ecole_id, db)
+    db.refresh(tache)
+    return _tache_en_dict(tache)
+
+
+@router.delete("/{edt_id}/taches/{tache_id}", response_model=TacheRead)
+def annuler_tache(
+    edt_id: int,
+    tache_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """
+    Interrompt une génération en cours.
+
+    L'arrêt est coopératif : le solveur s'arrête à la prochaine solution
+    trouvée, sans laisser l'emploi du temps à moitié réécrit.
+    """
+    tache = _get_tache_ou_404(tache_id, edt_id, utilisateur.ecole_id, db)
+    if tache.statut in TacheGeneration.STATUTS_FINAUX:
+        raise HTTPException(status_code=409,
+                            detail=f"Cette tâche est déjà {tache.statut}.")
+    if not generation.annuler(tache.id):
+        # Le worker n'a jamais démarré (redémarrage du serveur) :
+        # clore la tâche pour ne pas bloquer les suivantes.
+        tache.statut = TacheGeneration.ANNULEE
+        tache.message = "Génération annulée."
+        db.commit()
+    db.refresh(tache)
+    return _tache_en_dict(tache)

@@ -4,3 +4,11 @@ __pycache__/
 .venv/
 venv/
 emploi_du_temps.json
+
+# Sorties de génération
+emploi_du_temps.json
+*.db
+
+# Bases locales produites par importer_cem.py
+cem20.db
+base_ref.db

@@ -2,7 +2,7 @@
  * Dialogue de configuration des cours requis avant génération.
  * L'utilisateur définit : pour chaque (classe, matière, professeur) → nb d'heures/semaine
  */
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -16,11 +16,18 @@ import IconButton from "@mui/material/IconButton";
 import Icon from "@mui/material/Icon";
 import Divider from "@mui/material/Divider";
 import Alert from "@mui/material/Alert";
+import AlertTitle from "@mui/material/AlertTitle";
+import LinearProgress from "@mui/material/LinearProgress";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useSnackbar } from "notistack";
 import { edtApi } from "app/services/api";
 
-const EMPTY_COURS = { classe_id: "", matiere_id: "", professeur_id: "", heures_par_semaine: 2 };
+const EMPTY_COURS = {
+  classe_id: "", matiere_id: "", professeur_id: "",
+  heures_par_semaine: 2, nb_seances_doubles: 0, max_heures_par_jour: 2,
+};
+
+const INTERVALLE_SUIVI = 1500; // ms entre deux interrogations de la tâche
 
 export default function GenererDialog({ edtId, professeurs, matieres, classes, onClose, onSuccess }) {
   const { enqueueSnackbar } = useSnackbar();
@@ -28,6 +35,81 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
   const [limiteSec, setLimiteSec] = useState(120);
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState(null);
+  const [erreursDonnees, setErreursDonnees] = useState([]);
+  const [avertissements, setAvertissements] = useState([]);
+  const [tache, setTache] = useState(null);
+  const timerRef = useRef(null);
+
+  // Arrêter le suivi si le dialogue est fermé pendant une génération :
+  // sans cela, l'intervalle continue de tourner sur un composant démonté.
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const construirePayload = () => ({
+    cours_requis: cours.map((c) => ({
+      classe_id: +c.classe_id,
+      matiere_id: +c.matiere_id,
+      professeur_id: +c.professeur_id,
+      heures_par_semaine: +c.heures_par_semaine,
+      nb_seances_doubles: +c.nb_seances_doubles || 0,
+      max_heures_par_jour: +c.max_heures_par_jour || 2,
+    })),
+    limite_secondes: +limiteSec,
+  });
+
+  const champsManquants = () =>
+    cours.some((c) => !c.classe_id || !c.matiere_id || !c.professeur_id);
+
+  /** Contrôle des données sans lancer le calcul. */
+  const handleDiagnostic = async () => {
+    setErreur(null); setErreursDonnees([]); setAvertissements([]);
+    if (champsManquants()) { setErreur("Veuillez compléter tous les champs de chaque cours."); return; }
+    setLoading(true);
+    try {
+      const { data } = await edtApi.diagnostic(edtId, construirePayload());
+      setErreursDonnees(data.erreurs);
+      setAvertissements(data.avertissements);
+      if (data.realisable) {
+        enqueueSnackbar("Données cohérentes : la génération peut être lancée.",
+          { variant: "success" });
+      }
+    } catch (e) {
+      setErreur(e.response?.data?.detail ?? "Erreur lors du contrôle des données");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** Interroge la tâche jusqu'à ce qu'elle soit terminée. */
+  const suivre = async (tacheId) => {
+    try {
+      const { data } = await edtApi.tache(edtId, tacheId);
+      setTache(data);
+      if (!data.terminee) {
+        timerRef.current = setTimeout(() => suivre(tacheId), INTERVALLE_SUIVI);
+        return;
+      }
+      setLoading(false);
+      if (data.statut === "terminee") {
+        enqueueSnackbar(`${data.resultat.lecons_planifiees} leçons planifiées`,
+          { variant: "success" });
+        setAvertissements(data.resultat.avertissements ?? []);
+        onSuccess();
+      } else if (data.statut === "annulee") {
+        enqueueSnackbar("Génération annulée", { variant: "info" });
+      } else {
+        setErreur(data.message);
+        setErreursDonnees(data.erreurs ?? []);
+      }
+    } catch (e) {
+      setLoading(false);
+      setErreur("Suivi de la génération interrompu.");
+    }
+  };
+
+  const handleAnnuler = async () => {
+    if (!tache) return;
+    try { await edtApi.annulerTache(edtId, tache.id); } catch { /* déjà terminée */ }
+  };
 
   const updateCours = (i, field, val) => {
     setCours((prev) => prev.map((c, idx) => idx === i ? { ...c, [field]: val } : c));
@@ -37,30 +119,25 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
   const removeCours = (i) => setCours((prev) => prev.filter((_, idx) => idx !== i));
 
   const handleGenerer = async () => {
-    setErreur(null);
-    // Validation basique
-    const invalid = cours.find((c) => !c.classe_id || !c.matiere_id || !c.professeur_id);
-    if (invalid) { setErreur("Veuillez compléter tous les champs de chaque cours."); return; }
+    setErreur(null); setErreursDonnees([]); setAvertissements([]); setTache(null);
+    if (champsManquants()) { setErreur("Veuillez compléter tous les champs de chaque cours."); return; }
 
     setLoading(true);
     try {
-      const payload = {
-        cours_requis: cours.map((c) => ({
-          classe_id: +c.classe_id,
-          matiere_id: +c.matiere_id,
-          professeur_id: +c.professeur_id,
-          heures_par_semaine: +c.heures_par_semaine,
-        })),
-        limite_secondes: +limiteSec,
-      };
-      const { data } = await edtApi.generer(edtId, payload);
-      enqueueSnackbar(`${data.lecons_planifiees} leçons planifiées (${data.statut})`, { variant: "success" });
-      onSuccess();
+      // La génération est mise en file : la réponse porte la tâche, pas
+      // le résultat. Le calcul peut durer plusieurs minutes.
+      const { data } = await edtApi.generer(edtId, construirePayload());
+      setTache(data);
+      timerRef.current = setTimeout(() => suivre(data.id), INTERVALLE_SUIVI);
     } catch (e) {
-      const msg = e.response?.data?.detail ?? "Erreur lors de la génération";
-      setErreur(typeof msg === "string" ? msg : JSON.stringify(msg));
-    } finally {
       setLoading(false);
+      const detail = e.response?.data?.detail;
+      if (detail?.erreurs) {
+        setErreur(detail.message);
+        setErreursDonnees(detail.erreurs);
+      } else {
+        setErreur(typeof detail === "string" ? detail : "Erreur lors de la génération");
+      }
     }
   };
 
@@ -81,6 +158,56 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
 
         {erreur && <Alert severity="error" sx={{ mb: 2 }}>{erreur}</Alert>}
 
+        {erreursDonnees.length > 0 && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <AlertTitle>Données à corriger</AlertTitle>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {erreursDonnees.map((m, i) => <li key={i}>{m}</li>)}
+            </ul>
+          </Alert>
+        )}
+
+        {avertissements.length > 0 && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <AlertTitle>Points de vigilance</AlertTitle>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {avertissements.slice(0, 6).map((m, i) => <li key={i}>{m}</li>)}
+              {avertissements.length > 6 && (
+                <li>… et {avertissements.length - 6} autre(s)</li>
+              )}
+            </ul>
+          </Alert>
+        )}
+
+        {tache && !tache.terminee && (
+          <Alert severity="info" icon={false} sx={{ mb: 2 }}>
+            <AlertTitle>Génération en cours</AlertTitle>
+            <Typography variant="body2">{tache.message}</Typography>
+            {tache.cout_courant != null && (
+              <Typography variant="caption" color="text.secondary">
+                {tache.nb_solutions} solution(s) explorée(s) — le coût diminue
+                à mesure que la qualité s'améliore.
+              </Typography>
+            )}
+            <LinearProgress sx={{ mt: 1.5 }} />
+          </Alert>
+        )}
+
+        {tache?.statut === "terminee" && tache.resultat && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            <AlertTitle>
+              {tache.resultat.lecons_planifiees} leçons planifiées
+              {" "}({tache.resultat.statut}, {tache.resultat.duree_resolution}s)
+            </AlertTitle>
+            <Typography variant="body2">
+              Trous élèves : {tache.resultat.qualite.trous_classes} —
+              {" "}trous professeurs : {tache.resultat.qualite.trous_professeurs} —
+              {" "}journées de {tache.resultat.qualite.charge_journaliere_min} à
+              {" "}{tache.resultat.qualite.charge_journaliere_max} h
+            </Typography>
+          </Alert>
+        )}
+
         {cours.map((c, i) => (
           <Box key={i} mb={2}>
             <Box display="flex" alignItems="center" gap={0.5} mb={1}>
@@ -93,7 +220,7 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
                 </IconButton>
               )}
             </Box>
-            <Box display="grid" sx={{ gridTemplateColumns: "1fr 1fr 1fr 100px", gap: 1.5 }}>
+            <Box display="grid" sx={{ gridTemplateColumns: "1fr 1fr 1fr 100px 100px", gap: 1.5 }}>
               <TextField
                 select size="small" label="Classe" required
                 value={c.classe_id} onChange={(e) => updateCours(i, "classe_id", e.target.value)}
@@ -114,6 +241,13 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
                   <MenuItem key={p.id} value={p.id}>{p.prenom} {p.nom}</MenuItem>
                 ))}
               </TextField>
+              <TextField
+                type="number" size="small" label="Blocs 2h"
+                title="Nombre de séances de 2 h accolées à réserver dans le volume"
+                inputProps={{ min: 0, max: 10 }}
+                value={c.nb_seances_doubles}
+                onChange={(e) => updateCours(i, "nb_seances_doubles", e.target.value)}
+              />
               <TextField
                 type="number" size="small" label="H/sem."
                 inputProps={{ min: 1, max: 20 }}
@@ -140,7 +274,7 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
         <Box display="flex" alignItems="center" gap={2}>
           <TextField
             type="number" size="small" label="Limite de temps (secondes)"
-            inputProps={{ min: 10, max: 600, step: 10 }}
+            inputProps={{ min: 10, max: 900, step: 10 }}
             value={limiteSec}
             onChange={(e) => setLimiteSec(e.target.value)}
             sx={{ maxWidth: 220 }}
@@ -152,16 +286,30 @@ export default function GenererDialog({ edtId, professeurs, matieres, classes, o
       </DialogContent>
 
       <DialogActions sx={{ p: 2, gap: 1 }}>
-        <Button onClick={onClose} variant="outlined" color="inherit">Annuler</Button>
-        <LoadingButton
-          variant="contained"
-          color="secondary"
-          startIcon={<Icon>play_arrow</Icon>}
-          onClick={handleGenerer}
-          loading={loading}
-        >
-          Lancer le solveur
-        </LoadingButton>
+        <Button onClick={onClose} variant="outlined" color="inherit">Fermer</Button>
+
+        {tache && !tache.terminee ? (
+          <Button onClick={handleAnnuler} variant="outlined" color="error"
+                  startIcon={<Icon>stop</Icon>}>
+            Arrêter la génération
+          </Button>
+        ) : (
+          <>
+            <Button onClick={handleDiagnostic} variant="outlined"
+                    disabled={loading} startIcon={<Icon>fact_check</Icon>}>
+              Vérifier les données
+            </Button>
+            <LoadingButton
+              variant="contained"
+              color="secondary"
+              startIcon={<Icon>play_arrow</Icon>}
+              onClick={handleGenerer}
+              loading={loading}
+            >
+              Lancer le solveur
+            </LoadingButton>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );

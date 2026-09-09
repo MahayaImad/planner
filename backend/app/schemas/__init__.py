@@ -7,5 +7,7 @@ from .class_ import ClasseCreate, ClasseRead, ClasseUpdate
 from .schedule import (
     EmploiDuTempsCreate, EmploiDuTempsRead,
     LeconRead, GenererRequest, CoursRequisInput,
+    GrilleInput, FenetreInput, PonderationsInput, DiagnosticResponse,
+    TacheRead,
 )
 from .availability import DisponibiliteCreate, DisponibiliteRead

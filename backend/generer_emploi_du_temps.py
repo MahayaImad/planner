@@ -1,80 +1,139 @@
 """
-Script principal : génère et affiche l'emploi du temps de l'école Ibn Khaldoun.
-Usage : python generer_emploi_du_temps.py [--json]
+Génération d'un emploi du temps depuis la ligne de commande.
+
+    python3 generer_emploi_du_temps.py                 # CEM 20 divisions, vue classes
+    python3 generer_emploi_du_temps.py --prof          # vue professeurs
+    python3 generer_emploi_du_temps.py --json          # export JSON
+    python3 generer_emploi_du_temps.py --diagnostic    # contrôle des données seul
+    python3 generer_emploi_du_temps.py --reference     # petit jeu de référence
+    python3 generer_emploi_du_temps.py --limite 300    # temps de calcul (s)
 """
 
-import sys
+import argparse
 import json
-import time
+import os
+import sys
+from pathlib import Path
 
-# Rendre le dossier backend importable
-sys.path.insert(0, __file__.rsplit("/", 1)[0])
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from tests.donnees_test import (
-    creneaux, salles, matieres, professeurs, classes, cours_requis
+from solver import (  # noqa: E402
+    ERREUR, SolveurEmploiDuTemps, afficher_par_classe, afficher_par_professeur,
+    construire_index, diagnostiquer, evaluer, exporter_json, formater,
 )
-from solver import (
-    SolveurEmploiDuTemps,
-    construire_index,
-    afficher_par_classe,
-    afficher_par_professeur,
-    exporter_json,
-)
+
+
+def charger(reference: bool):
+    if reference:
+        from tests import donnees_test as d
+        d.fenetres_pedagogiques = []
+        return d, "CEM Ibn Khaldoun — jeu de référence"
+    from tests import donnees_cem20 as d
+    return d, "CEM 20 divisions — ALGERIAN_CEM_20CLASSES"
 
 
 def main():
-    export_json = "--json" in sys.argv
-    vue_prof = "--prof" in sys.argv
+    analyseur = argparse.ArgumentParser(description=__doc__)
+    analyseur.add_argument("--prof", action="store_true", help="vue par professeur")
+    analyseur.add_argument("--json", action="store_true", help="export JSON")
+    analyseur.add_argument("--diagnostic", action="store_true",
+                           help="contrôler les données sans résoudre")
+    analyseur.add_argument("--reference", action="store_true",
+                           help="utiliser le petit jeu de référence")
+    analyseur.add_argument("--limite", type=int, default=None,
+                           help="temps de calcul maximum, en secondes")
+    analyseur.add_argument("--completer", action="store_true",
+                           help="recruter les enseignants que le programme "
+                                "exige et que l'effectif ne couvre pas")
+    args = analyseur.parse_args()
 
-    print("=" * 60)
-    print("  GÉNÉRATEUR D'EMPLOIS DU TEMPS — Ibn Khaldoun, Alger")
-    print("=" * 60)
-    print(f"\n  Classes     : {len(classes)}")
-    print(f"  Professeurs : {len(professeurs)}")
-    print(f"  Matières    : {len(matieres)}")
-    print(f"  Salles      : {len(salles)}")
-    print(f"  Créneaux    : {len(creneaux)} / semaine")
-    print(f"  Cours req.  : {len(cours_requis)}")
-    print(f"  Leçons tot. : {sum(c.heures_par_semaine for c in cours_requis)}")
-    print()
+    if args.completer:
+        os.environ["CEM_COMPLETER_EFFECTIF"] = "1"
 
-    solveur = SolveurEmploiDuTemps(
-        creneaux=creneaux,
-        salles=salles,
-        matieres=matieres,
-        professeurs=professeurs,
-        classes=classes,
-        cours_requis=cours_requis,
-        limite_secondes=120,
-    )
+    d, titre = charger(args.reference)
+    if args.limite:
+        d.options.limite_secondes = args.limite
+    fenetres = getattr(d, "fenetres_pedagogiques", [])
 
-    print("  Résolution en cours...")
-    debut = time.time()
-    statut, lecons = solveur.resoudre()
-    duree = time.time() - debut
+    charge = sum(c.heures_par_semaine for c in d.cours_requis)
+    print("=" * 66)
+    print(f"  GÉNÉRATEUR D'EMPLOIS DU TEMPS — {titre}")
+    print("=" * 66)
+    print(f"  Divisions {len(d.classes):>4}   Professeurs {len(d.professeurs):>4}   "
+          f"Salles {len(d.salles):>4}   Créneaux ouverts {len(d.creneaux):>4}")
+    print(f"  Matières  {len(d.matieres):>4}   Cours       {len(d.cours_requis):>4}   "
+          f"Fenêtres pédagogiques {len(fenetres):>4}")
+    print(f"  Heures-professeur à placer : {charge}")
 
-    print(f"  Statut      : {statut}")
-    print(f"  Durée       : {duree:.2f}s")
-    print(f"  Leçons planifiées : {len(lecons)}")
+    anomalies = diagnostiquer(d.grille, d.salles, d.matieres, d.professeurs,
+                              d.classes, d.cours_requis, d.options, fenetres)
+    bloquantes = [m for n, m in anomalies if n == ERREUR]
 
-    if not lecons:
-        print("\n  ✗ Aucune solution trouvée. Vérifiez les contraintes.")
+    # Un service sans enseignant qualifié n'atteint jamais le solveur :
+    # sans ce contrôle, il produirait un emploi du temps amputé en
+    # silence.
+    orphelins = getattr(d, "services_non_affectes", [])
+    if orphelins:
+        heures = sum(int(x.split("(")[1].split()[0]) for x in orphelins)
+        bloquantes.insert(0, (
+            f"{len(orphelins)} services ({heures} h/semaine) sans enseignant "
+            f"qualifié : {', '.join(getattr(d, 'matieres_non_couvertes', []))}. "
+            f"Relancez avec --completer pour recruter le minimum nécessaire."))
+        anomalies = [(ERREUR, bloquantes[0])] + list(anomalies)
+    if getattr(d, "enseignants_ajoutes", None):
+        print(f"\n  Effectif complété : {', '.join(d.enseignants_ajoutes)}")
+    if anomalies:
+        print(f"\n  DIAGNOSTIC — {len(bloquantes)} erreur(s), "
+              f"{len(anomalies) - len(bloquantes)} avertissement(s)")
+        print(formater(anomalies[:12]))
+        if len(anomalies) > 12:
+            print(f"      … et {len(anomalies) - 12} autre(s)")
+
+    if args.diagnostic:
+        sys.exit(1 if bloquantes else 0)
+    if bloquantes:
+        print("\n  ✗ Données incohérentes : corrigez les erreurs ci-dessus.")
         sys.exit(1)
 
-    idx = construire_index(creneaux, salles, matieres, professeurs, classes)
+    print(f"\n  Résolution en cours (limite {d.options.limite_secondes} s)…")
+    solveur = SolveurEmploiDuTemps(
+        grille=d.grille, salles=d.salles, matieres=d.matieres,
+        professeurs=d.professeurs, classes=d.classes,
+        cours_requis=d.cours_requis, fenetres_pedagogiques=fenetres,
+        options=d.options, ponderations=d.ponderations,
+    )
+    resultat = solveur.resoudre()
 
-    if export_json:
-        data = exporter_json(lecons, idx)
-        output_path = "emploi_du_temps.json"
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"\n  Exporté → {output_path} ({len(data)} leçons)")
-    elif vue_prof:
-        afficher_par_professeur(lecons, idx)
+    print(f"  Statut {resultat.statut} · modèle monté en "
+          f"{resultat.duree_construction:.1f} s · résolu en "
+          f"{resultat.duree_resolution:.0f} s · "
+          f"{resultat.nb_variables} variables")
+    if resultat.valeur_objectif is not None:
+        print(f"  Coût des contraintes souples : {resultat.valeur_objectif}")
+
+    if not resultat.reussi:
+        print("\n  ✗ Aucune solution trouvée dans le temps imparti.")
+        sys.exit(1)
+
+    metriques = evaluer(resultat.lecons, d.grille, d.salles, d.matieres,
+                        d.professeurs, d.classes, d.cours_requis,
+                        d.options.type_salle_ordinaire)
+    metriques.permanences = len(resultat.permanences)
+    print(f"\n  QUALITÉ DE L'EMPLOI DU TEMPS\n{metriques.resume()}")
+
+    idx = construire_index(d.grille, d.salles, d.matieres, d.professeurs, d.classes)
+    if args.json:
+        donnees = exporter_json(resultat.lecons, idx)
+        chemin = Path("emploi_du_temps.json")
+        chemin.write_text(json.dumps(donnees, ensure_ascii=False, indent=2),
+                          encoding="utf-8")
+        print(f"\n  Exporté → {chemin} ({len(donnees)} leçons)")
+    elif args.prof:
+        afficher_par_professeur(resultat.lecons, idx)
     else:
-        afficher_par_classe(lecons, idx)
+        afficher_par_classe(resultat.lecons, idx, d.cours_requis)
 
-    print("\n  ✓ Emploi du temps généré avec succès.")
+    print("\n  ✓ Emploi du temps généré.")
 
 
 if __name__ == "__main__":
