@@ -1,139 +1,180 @@
 """
-Affichage et export des résultats du solveur.
-Fonctions pour visualiser l'emploi du temps dans le terminal
-et exporter en JSON.
+Affichage et export des emplois du temps.
+
+La vue grille (jours en colonnes, séances en lignes) reproduit la
+présentation utilisée dans les établissements, où les trous et les
+séances doubles se repèrent d'un coup d'œil.
 """
 
-import json
-from typing import List, Dict, Any
 from collections import defaultdict
+from typing import Any, Dict, List, Sequence
 
 from .models import (
-    Creneau, Salle, Matiere, Professeur,
-    Classe, LeconPlanifiee
+    Classe, GrilleHoraire, LeconPlanifiee, Matiere, Professeur, Salle,
 )
 
 
 def construire_index(
-    creneaux: List[Creneau],
-    salles: List[Salle],
-    matieres: List[Matiere],
-    professeurs: List[Professeur],
-    classes: List[Classe],
+    grille: GrilleHoraire,
+    salles: Sequence[Salle],
+    matieres: Sequence[Matiere],
+    professeurs: Sequence[Professeur],
+    classes: Sequence[Classe],
 ) -> Dict[str, Dict]:
     return {
-        "creneaux":    {c.id: c for c in creneaux},
-        "salles":      {s.id: s for s in salles},
-        "matieres":    {m.id: m for m in matieres},
+        "grille": grille,
+        "creneaux": grille.index(),
+        "salles": {s.id: s for s in salles},
+        "matieres": {m.id: m for m in matieres},
         "professeurs": {p.id: p for p in professeurs},
-        "classes":     {cl.id: cl for cl in classes},
+        "classes": {c.id: c for c in classes},
     }
 
 
-def afficher_par_classe(
-    lecons: List[LeconPlanifiee],
-    idx: Dict,
-) -> None:
-    """Affiche l'emploi du temps regroupé par classe dans le terminal."""
-    JOURS_ORDRE = ["Samedi","Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"]
+def _abreger(texte: str, largeur: int) -> str:
+    texte = texte.strip()
+    if len(texte) <= largeur:
+        return texte.ljust(largeur)
+    return texte[:largeur - 1] + "."
 
-    par_classe: Dict[int, Dict[str, List]] = defaultdict(lambda: defaultdict(list))
+
+def _grille_texte(grille: GrilleHoraire, cellules: Dict, titre: str,
+                  largeur: int = 22) -> str:
+    """cellules : (jour, creneau_id) → liste de lignes de texte."""
+    jours = grille.jours
+    seances = []
+    vus = set()
+    for creneau in grille.creneaux:
+        cle = (creneau.demi_journee, creneau.index_demi_journee)
+        if cle not in vus:
+            vus.add(cle)
+            seances.append(creneau)
+    seances.sort(key=lambda c: (c.demi_journee != "matin", c.index_demi_journee))
+
+    par_jour_seance = {}
+    for creneau in grille.creneaux:
+        par_jour_seance[(creneau.jour, creneau.demi_journee,
+                         creneau.index_demi_journee)] = creneau.id
+
+    lignes = []
+    barre = "─" * (13 + (largeur + 3) * len(jours))
+    lignes.append(f"\n╭{barre}╮")
+    lignes.append(f"│ {titre.ljust(len(barre) - 2)} │")
+    lignes.append(f"├{barre}┤")
+    entete = "│ " + "Horaire".ljust(11) + " │ " + " │ ".join(
+        _abreger(j, largeur) for j in jours) + " │"
+    lignes.append(entete)
+    lignes.append(f"├{barre}┤")
+
+    demi_precedente = None
+    for seance in seances:
+        if demi_precedente is not None and seance.demi_journee != demi_precedente:
+            lignes.append("│ " + "— pause —".ljust(11) + " │ " + " │ ".join(
+                " " * largeur for _ in jours) + " │")
+        demi_precedente = seance.demi_journee
+
+        horaire = f"{seance.heure_debut}-{seance.heure_fin[:5]}"
+        contenus = []
+        for jour in jours:
+            cid = par_jour_seance.get(
+                (jour, seance.demi_journee, seance.index_demi_journee))
+            contenus.append(cellules.get(cid, []))
+
+        hauteur = max((len(c) for c in contenus), default=0) or 1
+        for niveau in range(hauteur):
+            gauche = horaire.ljust(11) if niveau == 0 else " " * 11
+            cases = [
+                _abreger(c[niveau], largeur) if niveau < len(c) else " " * largeur
+                for c in contenus
+            ]
+            lignes.append("│ " + gauche + " │ " + " │ ".join(cases) + " │")
+    lignes.append(f"╰{barre}╯")
+    return "\n".join(lignes)
+
+
+def afficher_par_classe(lecons: Sequence[LeconPlanifiee], idx: Dict,
+                        cours_requis: Sequence = ()) -> None:
+    grille = idx["grille"]
+    idx_cours = {cr.id: cr for cr in cours_requis}
+
+    # Un créneau peut porter DEUX leçons : les demi-groupes d'un fouj.
+    # Les empiler, sinon l'une des deux moitiés disparaît de la grille.
+    brut = defaultdict(lambda: defaultdict(list))
     for lecon in lecons:
         creneau = idx["creneaux"][lecon.creneau_id]
-        par_classe[lecon.classe_id][creneau.jour].append(lecon)
+        brut[lecon.classe_id][creneau.id].append(lecon)
 
-    for classe_id, par_jour in sorted(par_classe.items()):
+    par_classe = defaultdict(dict)
+    for classe_id, par_creneau in brut.items():
+        for creneau_id, groupe in par_creneau.items():
+            groupe.sort(key=lambda l: idx_cours.get(
+                l.cours_requis_id, None).groupe if l.cours_requis_id in idx_cours else "")
+            lignes = []
+            for lecon in groupe:
+                matiere = idx["matieres"][lecon.matiere_id]
+                prof = idx["professeurs"][lecon.professeur_id]
+                salle = idx["salles"][lecon.salle_id]
+                cr = idx_cours.get(lecon.cours_requis_id)
+                marque = "▪" if lecon.en_seance_double else " "
+                etiquette = f"[{cr.groupe}] " if cr and cr.groupe else ""
+                lignes.append(f"{marque}{etiquette}{matiere.nom}")
+                lignes.append(f"  {prof.nom} · {salle.nom}")
+            par_classe[classe_id][creneau_id] = lignes
+
+    for classe_id in sorted(par_classe):
         classe = idx["classes"][classe_id]
-        print(f"\n{'='*60}")
-        print(f"  CLASSE : {classe.nom} ({classe.niveau})")
-        print(f"{'='*60}")
-
-        for jour in JOURS_ORDRE:
-            lecons_du_jour = par_jour.get(jour, [])
-            if not lecons_du_jour:
-                continue
-            lecons_du_jour.sort(key=lambda l: idx["creneaux"][l.creneau_id].heure_debut)
-            print(f"\n  {jour}")
-            print(f"  {'-'*40}")
-            for lecon in lecons_du_jour:
-                c  = idx["creneaux"][lecon.creneau_id]
-                m  = idx["matieres"][lecon.matiere_id]
-                p  = idx["professeurs"][lecon.professeur_id]
-                s  = idx["salles"][lecon.salle_id]
-                print(
-                    f"  {c.heure_debut}-{c.heure_fin} | "
-                    f"{m.nom:<20} | "
-                    f"{p.nom_complet:<20} | "
-                    f"{s.nom}"
-                )
+        print(_grille_texte(
+            grille, par_classe[classe_id],
+            f"CLASSE {classe.nom} — {classe.effectif} élèves"
+            + (f" — salle {idx['salles'][classe.salle_attitree_id].nom}"
+               if classe.salle_attitree_id else ""),
+        ))
+    print("\n  ▪ = heure d'une séance double   ·   [G1]/[G2] = demi-groupes d'un fouj")
 
 
-def afficher_par_professeur(
-    lecons: List[LeconPlanifiee],
-    idx: Dict,
-) -> None:
-    """Affiche l'emploi du temps regroupé par professeur."""
-    JOURS_ORDRE = ["Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"]
-
-    par_prof: Dict[int, Dict[str, List]] = defaultdict(lambda: defaultdict(list))
+def afficher_par_professeur(lecons: Sequence[LeconPlanifiee], idx: Dict) -> None:
+    grille = idx["grille"]
+    par_prof = defaultdict(dict)
     for lecon in lecons:
         creneau = idx["creneaux"][lecon.creneau_id]
-        par_prof[lecon.professeur_id][creneau.jour].append(lecon)
+        matiere = idx["matieres"][lecon.matiere_id]
+        classe = idx["classes"][lecon.classe_id]
+        salle = idx["salles"][lecon.salle_id]
+        par_prof[lecon.professeur_id][creneau.id] = [
+            f"{classe.nom} · {salle.nom}",
+            f" {matiere.nom}",
+        ]
 
-    for prof_id, par_jour in sorted(par_prof.items()):
+    for prof_id in sorted(par_prof):
         prof = idx["professeurs"][prof_id]
-        print(f"\n{'='*60}")
-        print(f"  PROFESSEUR : {prof.nom_complet}")
-        print(f"{'='*60}")
-
-        for jour in JOURS_ORDRE:
-            lecons_du_jour = par_jour.get(jour, [])
-            if not lecons_du_jour:
-                continue
-            lecons_du_jour.sort(key=lambda l: idx["creneaux"][l.creneau_id].heure_debut)
-            print(f"\n  {jour}")
-            print(f"  {'-'*40}")
-            for lecon in lecons_du_jour:
-                c  = idx["creneaux"][lecon.creneau_id]
-                m  = idx["matieres"][lecon.matiere_id]
-                cl = idx["classes"][lecon.classe_id]
-                s  = idx["salles"][lecon.salle_id]
-                print(
-                    f"  {c.heure_debut}-{c.heure_fin} | "
-                    f"{m.nom:<20} | "
-                    f"{cl.nom:<10} | "
-                    f"{s.nom}"
-                )
+        heures = sum(1 for l in lecons if l.professeur_id == prof_id)
+        print(_grille_texte(
+            grille, par_prof[prof_id],
+            f"PROFESSEUR {prof.nom_complet} — {heures} h/semaine",
+        ))
 
 
-def exporter_json(
-    lecons: List[LeconPlanifiee],
-    idx: Dict,
-) -> List[Dict[str, Any]]:
-    """Retourne l'emploi du temps complet sous forme de liste de dicts JSON."""
+def exporter_json(lecons: Sequence[LeconPlanifiee], idx: Dict) -> List[Dict[str, Any]]:
     resultat = []
     for lecon in lecons:
-        c  = idx["creneaux"][lecon.creneau_id]
-        m  = idx["matieres"][lecon.matiere_id]
-        p  = idx["professeurs"][lecon.professeur_id]
-        s  = idx["salles"][lecon.salle_id]
+        c = idx["creneaux"][lecon.creneau_id]
+        m = idx["matieres"][lecon.matiere_id]
+        p = idx["professeurs"][lecon.professeur_id]
+        s = idx["salles"][lecon.salle_id]
         cl = idx["classes"][lecon.classe_id]
         resultat.append({
-            "classe":      {"id": cl.id, "nom": cl.nom, "niveau": cl.niveau},
-            "matiere":     {"id": m.id, "nom": m.nom},
-            "professeur":  {"id": p.id, "nom": p.nom_complet},
-            "salle":       {"id": s.id, "nom": s.nom},
+            "classe": {"id": cl.id, "nom": cl.nom, "niveau": cl.niveau},
+            "matiere": {"id": m.id, "nom": m.nom},
+            "professeur": {"id": p.id, "nom": p.nom_complet},
+            "salle": {"id": s.id, "nom": s.nom, "type": s.type},
             "creneau": {
-                "id":          c.id,
-                "jour":        c.jour,
-                "heure_debut": c.heure_debut,
-                "heure_fin":   c.heure_fin,
+                "id": c.id, "jour": c.jour, "index_jour": c.index_jour,
+                "demi_journee": c.demi_journee,
+                "heure_debut": c.heure_debut, "heure_fin": c.heure_fin,
             },
+            "seance_double": lecon.en_seance_double,
         })
-    # Trier pour lisibilité
     resultat.sort(key=lambda r: (
-        r["classe"]["nom"],
-        r["creneau"]["jour"],
-        r["creneau"]["heure_debut"],
+        r["classe"]["nom"], r["creneau"]["index_jour"], r["creneau"]["heure_debut"],
     ))
     return resultat

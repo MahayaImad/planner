@@ -1,199 +1,194 @@
 """
-Données de test : École privée fictive "Ibn Khaldoun" — Alger
-Niveau : Collège (CEM) — 3 classes de 4ème année moyenne
+Jeu de données de référence : CEM « Ibn Khaldoun » — Alger.
 
-Semaine algérienne : Samedi → Jeudi (Vendredi = repos)
-Horaires : 8h00 → 17h00, créneaux de 1h, pause déjeuner 12h-13h
+Établissement complet et réaliste servant de banc d'essai :
+12 divisions (3 par niveau, de la 1ʳᵉ à la 4ᵉ année moyenne),
+23 enseignants, 348 heures à placer par semaine.
+
+Ce fichier sera remplacé par les données réelles du CEM fourni ;
+il définit en attendant la structure attendue.
 """
 
+from typing import Dict, List, Tuple
+
 from solver.models import (
-    Creneau, Salle, Matiere, Professeur,
-    Classe, CoursRequis
+    Classe, CoursRequis, GrilleHoraire, JOURS_SEMAINE_DZ, Matiere,
+    Options, Ponderations, Professeur, Salle,
 )
 
+# ══════════════════════════════════════════════════════════════════
+#  GRILLE HORAIRE
+#  Dimanche → Jeudi ; 4 séances le matin, 3 l'après-midi.
+# ══════════════════════════════════════════════════════════════════
 
-# ─────────────────────────────────────────────
-# CRÉNEAUX HORAIRES
-# Samedi → Jeudi, 8h-12h et 13h-17h (4h matin + 4h après-midi = 8h/jour)
-# ─────────────────────────────────────────────
+grille = GrilleHoraire.construire(
+    jours=JOURS_SEMAINE_DZ,
+    seances_matin=[("08:00", "08:55"), ("09:00", "09:55"),
+                   ("10:05", "11:00"), ("11:05", "12:00")],
+    seances_apres_midi=[("13:00", "13:55"), ("14:00", "14:55"),
+                        ("15:05", "16:00")],
+)
+creneaux = grille.creneaux   # 5 jours × 7 séances = 35 créneaux
 
-JOURS = ["Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"]
-HEURES = [
-    ("08:00", "09:00"),
-    ("09:00", "10:00"),
-    ("10:00", "11:00"),
-    ("11:00", "12:00"),
-    # 12h-13h : pause déjeuner (pas de créneau)
-    ("13:00", "14:00"),
-    ("14:00", "15:00"),
-    ("15:00", "16:00"),
-    ("16:00", "17:00"),
-]
+# ══════════════════════════════════════════════════════════════════
+#  MATIÈRES
+# ══════════════════════════════════════════════════════════════════
 
-creneaux = []
-creneau_id = 1
-for jour in JOURS:
-    for heure_debut, heure_fin in HEURES:
-        creneaux.append(Creneau(
-            id=creneau_id,
-            jour=jour,
-            heure_debut=heure_debut,
-            heure_fin=heure_fin,
-        ))
-        creneau_id += 1
-
-# Total : 6 jours × 8 créneaux = 48 créneaux/semaine
-
-
-# ─────────────────────────────────────────────
-# SALLES
-# ─────────────────────────────────────────────
-
-salles = [
-    Salle(id=1, nom="Salle 101", capacite=35, type="classique"),
-    Salle(id=2, nom="Salle 102", capacite=35, type="classique"),
-    Salle(id=3, nom="Salle 103", capacite=35, type="classique"),
-    Salle(id=4, nom="Labo Sciences", capacite=30, type="labo"),
-    Salle(id=5, nom="Salle Info", capacite=25, type="info"),
-]
-
-
-# ─────────────────────────────────────────────
-# MATIÈRES
-# Programme 4ème année moyenne (Algérie)
-# ─────────────────────────────────────────────
+M_ARABE, M_MATHS, M_FRANCAIS, M_ANGLAIS = 1, 2, 3, 4
+M_PHYSIQUE, M_SVT, M_HISTGEO, M_ISLAM = 5, 6, 7, 8
+M_CIVIQUE, M_INFO, M_EPS, M_ARTS = 9, 10, 11, 12
 
 matieres = [
-    Matiere(id=1,  nom="Mathématiques",         coefficient=4.0),
-    Matiere(id=2,  nom="Physique-Chimie",        coefficient=3.0),
-    Matiere(id=3,  nom="Sciences Naturelles",    coefficient=2.0),
-    Matiere(id=4,  nom="Langue Arabe",           coefficient=5.0),
-    Matiere(id=5,  nom="Langue Française",       coefficient=4.0),
-    Matiere(id=6,  nom="Langue Anglaise",        coefficient=3.0),
-    Matiere(id=7,  nom="Histoire-Géographie",    coefficient=2.0),
-    Matiere(id=8,  nom="Éducation Islamique",    coefficient=2.0),
-    Matiere(id=9,  nom="Éducation Civique",      coefficient=1.0),
-    Matiere(id=10, nom="Informatique",           coefficient=1.0),
+    Matiere(M_ARABE,    "Langue Arabe",        5.0, prefere_matin=True),
+    Matiere(M_MATHS,    "Mathématiques",       4.0, prefere_matin=True),
+    Matiere(M_FRANCAIS, "Langue Française",    3.0, prefere_matin=True),
+    Matiere(M_ANGLAIS,  "Langue Anglaise",     2.0),
+    Matiere(M_PHYSIQUE, "Sciences Physiques",  2.0, type_salle_requis="labo",
+            prefere_matin=True),
+    Matiere(M_SVT,      "Sciences Naturelles", 2.0, type_salle_requis="labo"),
+    Matiere(M_HISTGEO,  "Histoire-Géographie", 2.0),
+    Matiere(M_ISLAM,    "Éducation Islamique", 2.0),
+    Matiere(M_CIVIQUE,  "Éducation Civique",   1.0),
+    Matiere(M_INFO,     "Informatique",        1.0, type_salle_requis="info"),
+    Matiere(M_EPS,      "Éducation Physique",  1.0, type_salle_requis="sport"),
+    Matiere(M_ARTS,     "Éducation Artistique", 1.0),
 ]
 
+# ══════════════════════════════════════════════════════════════════
+#  SALLES
+#  Une salle de classe attitrée par division + salles spécialisées.
+# ══════════════════════════════════════════════════════════════════
 
-# ─────────────────────────────────────────────
-# PROFESSEURS
-# Chaque prof enseigne 1 ou 2 matières
-# Disponibilités : vide = disponible tout le temps
-# ─────────────────────────────────────────────
-
-# Créneaux du Jeudi après-midi indisponibles pour certains profs
-# (réunion pédagogique Jeudi 15h-17h = créneaux 47 et 48)
-JEUDI_PM = {47, 48}
-
-professeurs = [
-    Professeur(
-        id=1, nom="Benali", prenom="Karim",
-        matieres_ids=[1],  # Maths
-        max_heures_consecutives=3,
-    ),
-    Professeur(
-        id=2, nom="Meziane", prenom="Fatima",
-        matieres_ids=[2],  # Physique-Chimie
-        max_heures_consecutives=3,
-    ),
-    Professeur(
-        id=3, nom="Hadj", prenom="Amina",
-        matieres_ids=[3],  # Sciences Nat → labo
-        max_heures_consecutives=2,
-    ),
-    Professeur(
-        id=4, nom="Bouzid", prenom="Mohamed",
-        matieres_ids=[4],  # Arabe
-        max_heures_consecutives=4,
-    ),
-    Professeur(
-        id=5, nom="Kaci", prenom="Leila",
-        matieres_ids=[5],  # Français
-        max_heures_consecutives=3,
-    ),
-    Professeur(
-        id=6, nom="Rouag", prenom="Sofiane",
-        matieres_ids=[6],  # Anglais
-        max_heures_consecutives=3,
-        creneaux_disponibles=set(range(1, 49)) - JEUDI_PM,
-    ),
-    Professeur(
-        id=7, nom="Saadi", prenom="Nadia",
-        matieres_ids=[7],  # Histoire-Géo
-        max_heures_consecutives=3,
-    ),
-    Professeur(
-        id=8, nom="Mansouri", prenom="Omar",
-        matieres_ids=[8, 9],  # Éducation Islamique + Civique
-        max_heures_consecutives=3,
-    ),
-    Professeur(
-        id=9, nom="Cherif", prenom="Yasmine",
-        matieres_ids=[10],  # Informatique → salle info
-        max_heures_consecutives=2,
-        creneaux_disponibles=set(range(1, 49)) - JEUDI_PM,
-    ),
+salles: List[Salle] = []
+for i in range(12):
+    salles.append(Salle(id=i + 1, nom=f"Salle {101 + i}", capacite=40))
+salles += [
+    Salle(id=21, nom="Labo Sciences 1", capacite=36, type="labo"),
+    Salle(id=22, nom="Labo Sciences 2", capacite=36, type="labo"),
+    Salle(id=23, nom="Salle Informatique", capacite=36, type="info"),
+    Salle(id=24, nom="Terrain de sport", capacite=40, type="sport"),
+    Salle(id=25, nom="Salle omnisports", capacite=40, type="sport"),
 ]
 
+# ══════════════════════════════════════════════════════════════════
+#  CLASSES — 3 divisions par niveau, salle attitrée
+# ══════════════════════════════════════════════════════════════════
 
-# ─────────────────────────────────────────────
-# CLASSES
-# 3 sections de 4ème année moyenne
-# ─────────────────────────────────────────────
+NIVEAUX = ["1AM", "2AM", "3AM", "4AM"]
+EFFECTIFS = {"1AM": 36, "2AM": 35, "3AM": 34, "4AM": 32}
 
-classes = [
-    Classe(id=1, nom="4ème A", niveau="moyen", effectif=32),
-    Classe(id=2, nom="4ème B", niveau="moyen", effectif=30),
-    Classe(id=3, nom="4ème C", niveau="moyen", effectif=28),
+classes: List[Classe] = []
+classe_id = 1
+for niveau in NIVEAUX:
+    for section in ("A", "B", "C"):
+        classes.append(Classe(
+            id=classe_id,
+            nom=f"{niveau} {section}",
+            niveau=niveau,
+            effectif=EFFECTIFS[niveau],
+            salle_attitree_id=classe_id,   # Salle 101 → 112
+            max_heures_par_jour=6,
+        ))
+        classe_id += 1
+
+# ══════════════════════════════════════════════════════════════════
+#  PROGRAMME OFFICIEL — volume hebdomadaire par niveau
+#  (matiere_id, heures/semaine, nb séances doubles, max h/jour)
+# ══════════════════════════════════════════════════════════════════
+
+PROGRAMME: Dict[str, List[Tuple[int, int, int, int]]] = {
+    "1AM": [(M_ARABE, 5, 1, 2), (M_MATHS, 4, 1, 2), (M_FRANCAIS, 4, 1, 2),
+            (M_ANGLAIS, 3, 0, 1), (M_PHYSIQUE, 2, 0, 1), (M_SVT, 2, 0, 1),
+            (M_HISTGEO, 2, 0, 1), (M_ISLAM, 1, 0, 1), (M_CIVIQUE, 1, 0, 1),
+            (M_INFO, 1, 0, 1), (M_EPS, 2, 1, 2), (M_ARTS, 1, 0, 1)],
+    "2AM": [(M_ARABE, 5, 1, 2), (M_MATHS, 4, 1, 2), (M_FRANCAIS, 4, 1, 2),
+            (M_ANGLAIS, 3, 0, 1), (M_PHYSIQUE, 2, 0, 1), (M_SVT, 2, 0, 1),
+            (M_HISTGEO, 2, 0, 1), (M_ISLAM, 1, 0, 1), (M_CIVIQUE, 1, 0, 1),
+            (M_INFO, 1, 0, 1), (M_EPS, 2, 1, 2), (M_ARTS, 1, 0, 1)],
+    "3AM": [(M_ARABE, 5, 1, 2), (M_MATHS, 5, 1, 2), (M_FRANCAIS, 4, 1, 2),
+            (M_ANGLAIS, 3, 0, 1), (M_PHYSIQUE, 2, 0, 1), (M_SVT, 2, 0, 1),
+            (M_HISTGEO, 2, 0, 1), (M_ISLAM, 1, 0, 1), (M_CIVIQUE, 1, 0, 1),
+            (M_INFO, 1, 0, 1), (M_EPS, 2, 1, 2), (M_ARTS, 1, 0, 1)],
+    "4AM": [(M_ARABE, 5, 1, 2), (M_MATHS, 5, 1, 2), (M_FRANCAIS, 4, 1, 2),
+            (M_ANGLAIS, 3, 0, 1), (M_PHYSIQUE, 2, 0, 1), (M_SVT, 2, 0, 1),
+            (M_HISTGEO, 2, 0, 1), (M_ISLAM, 1, 0, 1), (M_CIVIQUE, 1, 0, 1),
+            (M_INFO, 1, 0, 1), (M_EPS, 2, 1, 2), (M_ARTS, 1, 0, 1)],
+}
+
+# ══════════════════════════════════════════════════════════════════
+#  PROFESSEURS — dimensionnés sur le volume réel de chaque matière
+# ══════════════════════════════════════════════════════════════════
+
+NOMS = [
+    ("Benali", "Karim"), ("Meziane", "Fatima"), ("Hadj", "Amina"),
+    ("Bouzid", "Mohamed"), ("Kaci", "Leila"), ("Rouag", "Sofiane"),
+    ("Saadi", "Nadia"), ("Mansouri", "Omar"), ("Cherif", "Yasmine"),
+    ("Belkacem", "Rachid"), ("Zerrouki", "Samira"), ("Ait Ali", "Hocine"),
+    ("Boudjema", "Nawel"), ("Lounis", "Farid"), ("Hamidi", "Souad"),
+    ("Terki", "Djamel"), ("Ould Ali", "Malika"), ("Brahimi", "Youcef"),
+    ("Guerrouj", "Assia"), ("Slimani", "Tarek"), ("Ferhat", "Lynda"),
+    ("Chaoui", "Bilal"), ("Nait Kaci", "Zohra"),
 ]
 
+# Nombre d'enseignants par matière (couvre la charge des 12 divisions).
+EFFECTIF_CORPS = {
+    M_ARABE: 3, M_MATHS: 3, M_FRANCAIS: 3, M_ANGLAIS: 2,
+    M_PHYSIQUE: 2, M_SVT: 2, M_HISTGEO: 2, M_ISLAM: 1,
+    M_CIVIQUE: 1, M_INFO: 1, M_EPS: 2, M_ARTS: 1,
+}
 
-# ─────────────────────────────────────────────
-# COURS REQUIS
-# Volume horaire hebdomadaire par classe
-# (programme officiel algérien 4ème moyenne, simplifié)
-# ─────────────────────────────────────────────
-#
-# Maths:        5h  | Physique:  3h | Sciences: 2h
-# Arabe:        5h  | Français:  4h | Anglais:  3h
-# Hist-Géo:     2h  | Isl+Civ:  2h | Info:     1h
-# Total/classe: 27h/semaine (sur 48 créneaux dispo)
+professeurs: List[Professeur] = []
+corps: Dict[int, List[int]] = {}
+_prof_id = 1
+for matiere_id, nombre in EFFECTIF_CORPS.items():
+    corps[matiere_id] = []
+    for _ in range(nombre):
+        nom, prenom = NOMS[(_prof_id - 1) % len(NOMS)]
+        professeurs.append(Professeur(
+            id=_prof_id, nom=nom, prenom=prenom,
+            matieres_ids=[matiere_id],
+            max_heures_consecutives=4,
+            max_heures_par_jour=6,
+        ))
+        corps[matiere_id].append(_prof_id)
+        _prof_id += 1
 
-def generer_cours_requis(classes, matieres_ids_volumes, debut_id=1):
-    """
-    matieres_ids_volumes : liste de (matiere_id, prof_id, heures, type_salle)
-    """
-    cours = []
-    cid = debut_id
-    for classe in classes:
-        for matiere_id, prof_id, heures, type_salle in matieres_ids_volumes:
-            cours.append(CoursRequis(
-                id=cid,
-                classe_id=classe.id,
-                matiere_id=matiere_id,
-                professeur_id=prof_id,
-                heures_par_semaine=heures,
-                type_salle_requis=type_salle,
-            ))
-            cid += 1
-    return cours
+# Contraintes individuelles : deux enseignants partagés avec un autre
+# établissement ne sont présents que trois jours par semaine.
+_indisponible_jeudi = {c.id for c in creneaux if c.jour == "Jeudi"}
+_tous = {c.id for c in creneaux}
+professeurs[corps[M_INFO][0] - 1].creneaux_disponibles = _tous - _indisponible_jeudi
+professeurs[corps[M_ARTS][0] - 1].creneaux_disponibles = _tous - _indisponible_jeudi
+# Une enseignante regroupe son service sur quatre jours.
+professeurs[corps[M_HISTGEO][0] - 1].max_jours_presence = 4
 
+# ══════════════════════════════════════════════════════════════════
+#  COURS REQUIS — croisement classes × programme
+# ══════════════════════════════════════════════════════════════════
 
-PROGRAMME = [
-    # (matiere_id, prof_id, heures/semaine, type_salle)
-    (1,  1, 5, None),       # Maths       → Benali        → salle classique
-    (2,  2, 3, None),       # Physique    → Meziane       → salle classique
-    (3,  3, 2, "labo"),     # Sciences    → Hadj          → labo
-    (4,  4, 5, None),       # Arabe       → Bouzid        → salle classique
-    (5,  5, 4, None),       # Français    → Kaci          → salle classique
-    (6,  6, 3, None),       # Anglais     → Rouag         → salle classique
-    (7,  7, 2, None),       # Hist-Géo    → Saadi         → salle classique
-    (8,  8, 1, None),       # Éd. Islam.  → Mansouri      → salle classique
-    (9,  8, 1, None),       # Éd. Civique → Mansouri      → salle classique
-    (10, 9, 1, "info"),     # Informatique→ Cherif        → salle info
-]
-# Total par classe : 5+3+2+5+4+3+2+1+1+1 = 27 heures/semaine
+cours_requis: List[CoursRequis] = []
+_cours_id = 1
+_rotation: Dict[int, int] = {m: 0 for m in EFFECTIF_CORPS}
 
-cours_requis = generer_cours_requis(classes, PROGRAMME)
+for classe in classes:
+    for matiere_id, heures, doubles, max_jour in PROGRAMME[classe.niveau]:
+        enseignants = corps[matiere_id]
+        prof_id = enseignants[_rotation[matiere_id] % len(enseignants)]
+        _rotation[matiere_id] += 1
+        cours_requis.append(CoursRequis(
+            id=_cours_id,
+            classe_id=classe.id,
+            matiere_id=matiere_id,
+            professeur_id=prof_id,
+            heures_par_semaine=heures,
+            nb_seances_doubles=doubles,
+            max_heures_par_jour=max_jour,
+        ))
+        _cours_id += 1
+
+# ══════════════════════════════════════════════════════════════════
+#  PARAMÉTRAGE PAR DÉFAUT
+# ══════════════════════════════════════════════════════════════════
+
+options = Options(limite_secondes=120)
+ponderations = Ponderations()

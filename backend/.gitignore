@@ -4,3 +4,7 @@ __pycache__/
 .venv/
 venv/
 emploi_du_temps.json
+
+# Sorties de génération
+emploi_du_temps.json
+*.db
