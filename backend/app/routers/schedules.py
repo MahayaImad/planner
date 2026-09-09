@@ -2,9 +2,15 @@
 Routes emplois du temps + déclenchement du solveur CP-SAT.
 """
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+
+from ..config import settings
+from ..models.task import TacheGeneration
+from ..services import generation
 
 from ..database import get_db
 from ..deps import get_utilisateur_courant
@@ -17,36 +23,10 @@ from ..models.schedule import EmploiDuTemps, Lecon
 from ..models.availability import DisponibiliteProfesseur
 from ..schemas import (
     EmploiDuTempsCreate, EmploiDuTempsRead, LeconRead, GenererRequest,
-    DiagnosticResponse,
-)
-
-from solver import (
-    ERREUR,
-    Classe as SClasse,
-    CoursRequis as SCoursRequis,
-    FenetrePedagogique as SFenetre,
-    GrilleHoraire,
-    Matiere as SMatiere,
-    Options,
-    Ponderations,
-    Professeur as SProfesseur,
-    Salle as SSalle,
-    SolveurEmploiDuTemps,
-    diagnostiquer,
-    evaluer,
+    DiagnosticResponse, TacheRead,
 )
 
 router = APIRouter(prefix="/emplois-du-temps", tags=["Emplois du temps"])
-
-def _construire_grille(config) -> GrilleHoraire:
-    """Grille horaire de l'établissement, telle que transmise par le client."""
-    return GrilleHoraire.depuis_configuration(
-        jours=config.jours,
-        horaires=[tuple(h) for h in config.horaires],
-        shifts=[(nom, list(seances)) for nom, seances in config.shifts],
-        fermetures=[(jour, list(seances)) for jour, seances in config.fermetures],
-    )
-
 
 def _get_edt_ou_404(edt_id: int, ecole_id: int, db: Session) -> EmploiDuTemps:
     edt = db.query(EmploiDuTemps).filter(
@@ -127,95 +107,6 @@ def lister_lecons(
     return lecons
 
 
-# ── Préparation des données du solveur ─────────────────────────
-
-def _preparer(requete: GenererRequest, ecole_id: int, db: Session):
-    """Charge les ressources de l'école et les convertit pour le solveur."""
-    db_professeurs = db.query(Professeur).filter(Professeur.ecole_id == ecole_id).all()
-    db_matieres = db.query(Matiere).filter(Matiere.ecole_id == ecole_id).all()
-    db_salles = db.query(Salle).filter(Salle.ecole_id == ecole_id).all()
-    db_classes = db.query(Classe).filter(Classe.ecole_id == ecole_id).all()
-
-    if not db_salles:
-        raise HTTPException(status_code=400, detail="Aucune salle définie pour cette école")
-    if not db_professeurs:
-        raise HTTPException(status_code=400, detail="Aucun professeur défini pour cette école")
-
-    grille = _construire_grille(requete.grille)
-    creneau_map = {(c.jour, c.heure_debut): c.id for c in grille.creneaux}
-    tous_creneaux = {c.id for c in grille.creneaux}
-
-    # Indisponibilités → créneaux où le professeur peut enseigner.
-    indispos = db.query(DisponibiliteProfesseur).filter(
-        DisponibiliteProfesseur.disponible == 0,
-        DisponibiliteProfesseur.professeur_id.in_([p.id for p in db_professeurs]),
-    ).all()
-    bloques = {}
-    for d in indispos:
-        cid = creneau_map.get((d.jour, d.heure_debut))
-        if cid:
-            bloques.setdefault(d.professeur_id, set()).add(cid)
-
-    s_salles = [SSalle(id=x.id, nom=x.nom, capacite=x.capacite, type=x.type)
-                for x in db_salles]
-    s_matieres = [SMatiere(id=x.id, nom=x.nom, coefficient=x.coefficient,
-                           type_salle_requis=x.type_salle_requis)
-                  for x in db_matieres]
-    s_professeurs = [
-        SProfesseur(
-            id=p.id, nom=p.nom, prenom=p.prenom,
-            matieres_ids=[m.id for m in p.matieres],
-            creneaux_disponibles=tous_creneaux - bloques.get(p.id, set()),
-            max_heures_consecutives=p.max_heures_consecutives,
-        )
-        for p in db_professeurs
-    ]
-    s_classes = [SClasse(id=c.id, nom=c.nom, niveau=c.niveau, effectif=c.effectif,
-                         max_heures_par_jour=len(requete.grille.horaires))
-                 for c in db_classes]
-
-    ids_classes = {c.id for c in db_classes}
-    ids_matieres = {m.id for m in db_matieres}
-    ids_profs = {p.id for p in db_professeurs}
-    matieres_par_id = {m.id: m for m in db_matieres}
-
-    s_cours = []
-    for i, cr in enumerate(requete.cours_requis, start=1):
-        if cr.classe_id not in ids_classes:
-            raise HTTPException(status_code=400, detail=f"Classe {cr.classe_id} introuvable")
-        if cr.matiere_id not in ids_matieres:
-            raise HTTPException(status_code=400, detail=f"Matière {cr.matiere_id} introuvable")
-        if cr.professeur_id not in ids_profs:
-            raise HTTPException(status_code=400, detail=f"Professeur {cr.professeur_id} introuvable")
-        s_cours.append(SCoursRequis(
-            id=i,
-            classe_id=cr.classe_id,
-            matiere_id=cr.matiere_id,
-            professeur_id=cr.professeur_id,
-            heures_par_semaine=cr.heures_par_semaine,
-            type_salle_requis=matieres_par_id[cr.matiere_id].type_salle_requis,
-            nb_seances_doubles=cr.nb_seances_doubles,
-            max_heures_par_jour=cr.max_heures_par_jour,
-            couplage_id=cr.couplage_id,
-            groupe=cr.groupe,
-        ))
-
-    fenetres = [
-        SFenetre(matiere_id=f.matiere_id, index_jour=f.index_jour,
-                 seances_bloquees=set(f.seances_bloquees), libelle=f.libelle)
-        for f in requete.fenetres_pedagogiques
-    ]
-    options = Options(
-        limite_secondes=requete.limite_secondes,
-        presence_minimale=dict(requete.presence_minimale),
-        type_salle_ordinaire=requete.type_salle_ordinaire,
-    )
-    ponderations = Ponderations(**requete.ponderations.model_dump())
-
-    return (grille, s_salles, s_matieres, s_professeurs, s_classes,
-            s_cours, fenetres, options, ponderations)
-
-
 # ── Contrôle des données, sans résolution ──────────────────────
 
 @router.post("/{edt_id}/diagnostic", response_model=DiagnosticResponse)
@@ -228,25 +119,50 @@ def controler(
     """
     Vérifie la cohérence des données AVANT de lancer le calcul.
 
-    Permet au responsable de corriger ses saisies sans attendre plusieurs
-    minutes pour découvrir que le problème était insoluble.
+    Le responsable corrige ses saisies immédiatement au lieu d'attendre
+    plusieurs minutes pour découvrir que le problème était insoluble.
     """
     _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
-    donnees = _preparer(requete, utilisateur.ecole_id, db)
-    grille, salles, matieres, profs, classes_, cours, fenetres, options, _ = donnees
-    anomalies = diagnostiquer(grille, salles, matieres, profs, classes_, cours,
-                              options, fenetres)
-    erreurs = [m for n, m in anomalies if n == ERREUR]
+    erreurs, avertissements = generation.controler(requete, utilisateur.ecole_id, db)
     return DiagnosticResponse(
-        erreurs=erreurs,
-        avertissements=[m for n, m in anomalies if n != ERREUR],
-        realisable=not erreurs,
+        erreurs=erreurs, avertissements=avertissements, realisable=not erreurs,
     )
 
 
-# ── Génération automatique ─────────────────────────────────────
+# ── Génération en arrière-plan ─────────────────────────────────
 
-@router.post("/{edt_id}/generer", response_model=dict)
+def _tache_en_dict(tache: TacheGeneration) -> dict:
+    return {
+        "id": tache.id,
+        "emploi_du_temps_id": tache.emploi_du_temps_id,
+        "statut": tache.statut,
+        "message": tache.message,
+        "cout_courant": tache.cout_courant,
+        "nb_solutions": tache.nb_solutions or 0,
+        "lecons_planifiees": tache.lecons_planifiees or 0,
+        "resultat": json.loads(tache.resultat) if tache.resultat else None,
+        "erreurs": json.loads(tache.erreurs) if tache.erreurs else [],
+        "created_at": tache.created_at,
+        "started_at": tache.started_at,
+        "finished_at": tache.finished_at,
+        "terminee": tache.statut in TacheGeneration.STATUTS_FINAUX,
+    }
+
+
+def _get_tache_ou_404(tache_id: int, edt_id: int, ecole_id: int,
+                      db: Session) -> TacheGeneration:
+    tache = db.query(TacheGeneration).filter(
+        TacheGeneration.id == tache_id,
+        TacheGeneration.emploi_du_temps_id == edt_id,
+        TacheGeneration.ecole_id == ecole_id,
+    ).first()
+    if not tache:
+        raise HTTPException(status_code=404, detail="Tâche introuvable")
+    return tache
+
+
+@router.post("/{edt_id}/generer", response_model=TacheRead,
+             status_code=status.HTTP_202_ACCEPTED)
 def generer(
     edt_id: int,
     requete: GenererRequest,
@@ -254,75 +170,104 @@ def generer(
     utilisateur: Utilisateur = Depends(get_utilisateur_courant),
 ):
     """
-    Lance le solveur CP-SAT et remplace les leçons de cet emploi du temps.
+    Met une génération en file d'attente et rend la main immédiatement.
 
-    En cas d'échec, renvoie le diagnostic détaillé plutôt qu'un message
-    générique : le responsable sait quelle contrainte bloque.
+    Une résolution dure de quelques secondes à plusieurs minutes : la
+    réponse porte l'identifiant de la tâche, que le client interroge
+    ensuite pour suivre l'avancement.
     """
     _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
-    donnees = _preparer(requete, utilisateur.ecole_id, db)
-    (grille, salles, matieres, profs, classes_, cours,
-     fenetres, options, ponderations) = donnees
 
-    resultat = SolveurEmploiDuTemps(
-        grille=grille, salles=salles, matieres=matieres, professeurs=profs,
-        classes=classes_, cours_requis=cours, fenetres_pedagogiques=fenetres,
-        options=options, ponderations=ponderations,
-    ).resoudre()
-
-    if not resultat.reussi:
-        erreurs = [m for n, m in resultat.anomalies if n == ERREUR]
+    en_cours = db.query(TacheGeneration).filter(
+        TacheGeneration.emploi_du_temps_id == edt_id,
+        TacheGeneration.statut.notin_(TacheGeneration.STATUTS_FINAUX),
+    ).first()
+    if en_cours:
         raise HTTPException(
-            status_code=422,
-            detail={
-                "statut": resultat.statut,
-                "message": (
-                    "Les données saisies sont incohérentes."
-                    if erreurs else
-                    "Aucune solution trouvée dans le temps imparti. "
-                    "Augmentez la limite de calcul ou assouplissez les contraintes."
-                ),
-                "erreurs": erreurs,
-                "avertissements": [m for n, m in resultat.anomalies if n != ERREUR],
-            },
+            status_code=409,
+            detail=f"Une génération est déjà en cours (tâche {en_cours.id}). "
+                   f"Attendez la fin ou annulez-la.",
         )
 
-    creneaux = grille.index()
-    db.query(Lecon).filter(Lecon.emploi_du_temps_id == edt_id).delete()
-    for lecon in resultat.lecons:
-        creneau = creneaux[lecon.creneau_id]
-        db.add(Lecon(
-            emploi_du_temps_id=edt_id,
-            classe_id=lecon.classe_id,
-            matiere_id=lecon.matiere_id,
-            professeur_id=lecon.professeur_id,
-            salle_id=lecon.salle_id,
-            jour=creneau.jour,
-            heure_debut=creneau.heure_debut,
-            heure_fin=creneau.heure_fin,
-        ))
+    # Borner le temps de calcul : sans plafond, un client peut
+    # immobiliser une place du pool pendant des heures.
+    requete.limite_secondes = max(
+        1, min(requete.limite_secondes, settings.LIMITE_SECONDES_MAX))
+
+    # Refuser tout de suite des données incohérentes : inutile
+    # d'occuper un worker pour un problème insoluble.
+    erreurs, _ = generation.controler(requete, utilisateur.ecole_id, db)
+    if erreurs:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "Les données saisies sont incohérentes.",
+                    "erreurs": erreurs},
+        )
+
+    tache = TacheGeneration(
+        ecole_id=utilisateur.ecole_id,
+        emploi_du_temps_id=edt_id,
+        statut=TacheGeneration.EN_ATTENTE,
+        message="En attente d'un créneau de calcul…",
+        requete=requete.model_dump_json(),
+    )
+    db.add(tache)
     db.commit()
+    db.refresh(tache)
 
-    metriques = evaluer(resultat.lecons, grille, salles, matieres, profs,
-                        classes_, cours, options.type_salle_ordinaire)
-    metriques.permanences = len(resultat.permanences)
+    generation.soumettre(tache.id)
+    return _tache_en_dict(tache)
 
-    return {
-        "statut": resultat.statut,
-        "lecons_planifiees": len(resultat.lecons),
-        "duree_resolution": round(resultat.duree_resolution, 1),
-        "cout_contraintes_souples": resultat.valeur_objectif,
-        "qualite": {
-            "trous_classes": metriques.trous_classes,
-            "trous_professeurs": metriques.trous_professeurs,
-            "trous_doubles_professeurs": metriques.trous_doubles_professeurs,
-            "heures_isolees_professeurs": metriques.heures_isolees_professeurs,
-            "permanences": metriques.permanences,
-            "charge_journaliere_min": metriques.charge_journaliere_min,
-            "charge_journaliere_max": metriques.charge_journaliere_max,
-            "seances_tardives_min": metriques.seances_tardives_min,
-            "seances_tardives_max": metriques.seances_tardives_max,
-        },
-        "avertissements": [m for n, m in resultat.anomalies if n != ERREUR],
-        "message": f"Emploi du temps généré : {len(resultat.lecons)} leçons planifiées.",
-    }
+
+@router.get("/{edt_id}/taches", response_model=List[TacheRead])
+def lister_taches(
+    edt_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """Historique des générations de cet emploi du temps."""
+    _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
+    taches = db.query(TacheGeneration).filter(
+        TacheGeneration.emploi_du_temps_id == edt_id,
+    ).order_by(TacheGeneration.id.desc()).limit(20).all()
+    return [_tache_en_dict(t) for t in taches]
+
+
+@router.get("/{edt_id}/taches/{tache_id}", response_model=TacheRead)
+def lire_tache(
+    edt_id: int,
+    tache_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """Avancement d'une génération. C'est cette route que le client interroge."""
+    tache = _get_tache_ou_404(tache_id, edt_id, utilisateur.ecole_id, db)
+    db.refresh(tache)
+    return _tache_en_dict(tache)
+
+
+@router.delete("/{edt_id}/taches/{tache_id}", response_model=TacheRead)
+def annuler_tache(
+    edt_id: int,
+    tache_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """
+    Interrompt une génération en cours.
+
+    L'arrêt est coopératif : le solveur s'arrête à la prochaine solution
+    trouvée, sans laisser l'emploi du temps à moitié réécrit.
+    """
+    tache = _get_tache_ou_404(tache_id, edt_id, utilisateur.ecole_id, db)
+    if tache.statut in TacheGeneration.STATUTS_FINAUX:
+        raise HTTPException(status_code=409,
+                            detail=f"Cette tâche est déjà {tache.statut}.")
+    if not generation.annuler(tache.id):
+        # Le worker n'a jamais démarré (redémarrage du serveur) :
+        # clore la tâche pour ne pas bloquer les suivantes.
+        tache.statut = TacheGeneration.ANNULEE
+        tache.message = "Génération annulée."
+        db.commit()
+    db.refresh(tache)
+    return _tache_en_dict(tache)

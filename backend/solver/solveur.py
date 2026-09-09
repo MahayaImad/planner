@@ -39,9 +39,10 @@ Contraintes SOUPLES (fonction objectif pondérée)
   S5  minimiser les demi-journées travaillées par les classes
 """
 
+import logging
 import time
 from collections import defaultdict
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from ortools.sat.python import cp_model
 
@@ -50,6 +51,37 @@ from .models import (
     APRES_MIDI, Classe, CoursRequis, Creneau, FenetrePedagogique, GrilleHoraire,
     LeconPlanifiee, Matiere, Options, Ponderations, Professeur, Resultat, Salle,
 )
+
+logger = logging.getLogger(__name__)
+
+
+class _SuiviRecherche(cp_model.CpSolverSolutionCallback):
+    """
+    Suit la recherche : remonte chaque solution améliorante et permet de
+    l'interrompre proprement.
+
+    Une génération dure plusieurs minutes. Sans point d'arrêt, la seule
+    façon de la stopper serait de tuer le processus — ce qui laisserait
+    la tâche en base dans un état incohérent.
+    """
+
+    def __init__(self, rappel=None, arret=None):
+        super().__init__()
+        self._rappel = rappel
+        self._arret = arret
+        self.nb_solutions = 0
+
+    def on_solution_callback(self):
+        self.nb_solutions += 1
+        if self._rappel is not None:
+            try:
+                self._rappel(int(self.ObjectiveValue()), self.WallTime())
+            except Exception:
+                # Le suivi ne doit jamais faire échouer la résolution,
+                # mais une panne silencieuse serait pire : la tracer.
+                logger.warning("Rappel de progression en échec", exc_info=True)
+        if self._arret is not None and self._arret():
+            self.StopSearch()
 
 
 class SolveurEmploiDuTemps:
@@ -169,7 +201,19 @@ class SolveurEmploiDuTemps:
     #  Résolution
     # ══════════════════════════════════════════════════════════════
 
-    def resoudre(self) -> Resultat:
+    def resoudre(
+        self,
+        rappel: Optional[Callable[[int, float], None]] = None,
+        arret: Optional[Callable[[], bool]] = None,
+    ) -> Resultat:
+        """
+        Monte le modèle et lance la recherche.
+
+        rappel  appelé à chaque solution améliorante, avec le coût courant
+                et le temps écoulé — sert à afficher la progression.
+        arret   consulté à chaque solution ; renvoyer True interrompt la
+                recherche et marque le résultat comme interrompu.
+        """
         depart = time.perf_counter()
 
         anomalies = diagnostiquer(
@@ -594,18 +638,20 @@ class SolveurEmploiDuTemps:
         solveur.parameters.max_time_in_seconds = float(self.options.limite_secondes)
         solveur.parameters.num_search_workers = self.options.nb_workers
         solveur.parameters.log_search_progress = False
-        statut = solveur.Solve(modele)
+        suivi = _SuiviRecherche(rappel, arret)
+        statut = solveur.Solve(modele, suivi)
         duree_resolution = time.perf_counter() - depart_resolution
+        interrompu = bool(arret and arret())
 
         resultat = Resultat(
-            statut=solveur.StatusName(statut),
+            statut="INTERROMPU" if interrompu else solveur.StatusName(statut),
             duree_construction=duree_construction,
             duree_resolution=duree_resolution,
             nb_variables=len(y) + len(w),
             anomalies=anomalies,
         )
 
-        if statut not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        if interrompu or statut not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             return resultat
 
         resultat.valeur_objectif = int(solveur.ObjectiveValue()) if termes else None

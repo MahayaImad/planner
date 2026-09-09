@@ -6,6 +6,9 @@ psycopg2-binary>=2.9.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 pydantic[email]>=2.0.0
-# JWT implémenté manuellement (hmac/hashlib)
+# JWT signé à la main (hmac/hashlib) et mots de passe hachés avec
+# scrypt, tous deux dans la bibliothèque standard.
+# passlib ne sert plus qu'à relire les empreintes sha256_crypt créées
+# par les versions antérieures ; elles sont remplacées à la connexion.
 passlib>=1.7.4
 python-multipart>=0.0.9

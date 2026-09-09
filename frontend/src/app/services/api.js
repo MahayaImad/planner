@@ -29,12 +29,10 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email, mot_de_passe) =>
     api.post("/auth/connexion", { email, mot_de_passe }),
-  register: (ecole, admin) =>
-    api.post("/auth/inscrire", null, { params: {}, data: undefined })
-      .then(() => {}) // utilisé directement via api.post ci-dessous
-    ,
-  inscrire: (ecoleData, adminData) =>
-    api.post("/auth/inscrire", ecoleData, { params: adminData }),
+  // École et compte admin voyagent dans le corps de la requête : passer
+  // le mot de passe en paramètre d'URL le ferait apparaître dans les
+  // journaux du serveur et l'historique du navigateur.
+  inscrire: (ecole, admin) => api.post("/auth/inscrire", { ecole, admin }),
   profil: () => api.get("/auth/moi"),
 };
 
@@ -83,7 +81,18 @@ export const edtApi = {
   creer: (data) => api.post("/emplois-du-temps/", data),
   supprimer: (id) => api.delete(`/emplois-du-temps/${id}`),
   lecons: (id) => api.get(`/emplois-du-temps/${id}/lecons`),
+
+  // Contrôle des données avant calcul : le responsable corrige ses
+  // saisies sans attendre la fin d'une résolution vouée à l'échec.
+  diagnostic: (id, data) => api.post(`/emplois-du-temps/${id}/diagnostic`, data),
+
+  // La génération est asynchrone : /generer met en file et rend la
+  // main, le client interroge ensuite l'avancement de la tâche.
   generer: (id, data) => api.post(`/emplois-du-temps/${id}/generer`, data),
+  taches: (id) => api.get(`/emplois-du-temps/${id}/taches`),
+  tache: (id, tacheId) => api.get(`/emplois-du-temps/${id}/taches/${tacheId}`),
+  annulerTache: (id, tacheId) =>
+    api.delete(`/emplois-du-temps/${id}/taches/${tacheId}`),
 };
 
 export default api;

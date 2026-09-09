@@ -112,3 +112,20 @@ class EmploiDuTempsRead(BaseModel):
     nb_lecons: Optional[int] = 0
 
     model_config = {"from_attributes": True}
+
+
+class TacheRead(BaseModel):
+    """État d'une génération lancée en arrière-plan."""
+    id: int
+    emploi_du_temps_id: int
+    statut: str                       # en_attente | en_cours | terminee | echouee | annulee
+    message: Optional[str] = None
+    cout_courant: Optional[int] = None
+    nb_solutions: int = 0
+    lecons_planifiees: int = 0
+    resultat: Optional[dict] = None
+    erreurs: List[str] = []
+    created_at: datetime
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    terminee: bool = False
