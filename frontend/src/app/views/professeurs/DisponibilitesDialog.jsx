@@ -14,12 +14,13 @@ import CircularProgress from "@mui/material/CircularProgress";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useSnackbar } from "notistack";
 import { professeursApi } from "app/services/api";
+import { JOURS as JOURS_GRILLE, HEURES_DEBUT } from "app/config/grille";
 
-const JOURS = ["Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"];
-const HEURES = [
-  "08:00", "09:00", "10:00", "11:00",
-  "13:00", "14:00", "15:00", "16:00",
-];
+// La grille vient d'un fichier commun : recopiée ici, elle finissait par
+// diverger de celle attendue par le serveur, et les cases cochées sur un
+// horaire inconnu étaient ignorées sans le moindre message.
+const JOURS = JOURS_GRILLE;
+const HEURES = HEURES_DEBUT;
 
 export default function DisponibilitesDialog({ profId, onClose }) {
   const { enqueueSnackbar } = useSnackbar();
