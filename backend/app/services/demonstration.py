@@ -206,9 +206,12 @@ def charger(db: Session, ecole_id: int) -> Dict:
         "shifts": [[nom, list(seances)] for nom, seances in cem20.SHIFTS],
         "fermetures": [[jour, list(seances)] for jour, seances in cem20.FERMETURES],
     }
-    poids = dict(vars(cem20.ponderations))
-    poids["penalites_seance"] = {
-        str(k): v for k, v in cem20.ponderations.penalites_seance.items()}
+    # Les seuils sont indexés par des entiers ; JSON n'a que des clés
+    # texte, et les relire sans conversion donnerait deux formes pour la
+    # même donnée selon qu'elle sort du code ou de la base.
+    poids = {cle: ({str(k): v for k, v in valeur.items()}
+                   if isinstance(valeur, dict) else valeur)
+             for cle, valeur in vars(cem20.ponderations).items()}
     reglages.ponderations = poids
     reglages.presence_minimale = dict(cem20.options.presence_minimale)
     reglages.type_salle_ordinaire = cem20.options.type_salle_ordinaire

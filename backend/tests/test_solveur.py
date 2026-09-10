@@ -609,6 +609,82 @@ def test_heures_creuses_reparties_sur_des_jours_differents():
     assert metriques.heures_creuses_en_trop == 0
 
 
+def test_metrique_compte_les_charges_quotidiennes():
+    """
+    Un enseignant présent cinq heures lundi et deux heures mardi : la
+    métrique décrit la distribution, une journée par entrée.
+    """
+    horaires = [(f"{8 + i:02d}:00", f"{8 + i:02d}:55") for i in range(5)]
+    grille = GrilleHoraire.depuis_configuration(
+        ["Lundi", "Mardi"], horaires, [("journee", list(range(5)))])
+    creneau = {(c.jour, c.index_seance): c.id for c in grille.creneaux}
+
+    salles = [Salle(1, "S1", 40)]
+    classes = [Classe(1, "C1", effectif=30, salle_attitree_id=1)]
+    matieres = [Matiere(1, "Maths")]
+    professeurs = [Professeur(1, "Unique", "Prof", matieres_ids=[1])]
+    cours = [CoursRequis(1, 1, 1, 1, heures_par_semaine=7)]
+
+    places = [("Lundi", i) for i in range(5)] + [("Mardi", i) for i in range(2)]
+    lecons = [
+        LeconPlanifiee(cours_requis_id=1, classe_id=1, matiere_id=1,
+                       professeur_id=1, salle_id=1,
+                       creneau_id=creneau[cle])
+        for cle in places
+    ]
+    metriques = evaluer(lecons, grille, salles, matieres, professeurs,
+                        classes, cours)
+    assert metriques.charges_quotidiennes_professeurs == {2: 1, 5: 1}
+
+
+def test_penalite_de_charge_repartit_les_heures_sur_deux_journees():
+    """
+    Six heures à placer pour un seul enseignant sur deux journées de six
+    séances. Le poids des jours de présence pousse à tout concentrer sur
+    le lundi ; les seuils de charge quotidienne, qui se cumulent, doivent
+    l'emporter et étaler la semaine.
+    """
+    horaires = [(f"{8 + i:02d}:00", f"{8 + i:02d}:55") for i in range(6)]
+    grille = GrilleHoraire.depuis_configuration(
+        ["Lundi", "Mardi"], horaires, [("journee", list(range(6)))])
+
+    salles = [Salle(i + 1, f"S{i + 1}", 40) for i in range(6)]
+    classes = [Classe(i + 1, f"C{i + 1}", effectif=30, salle_attitree_id=i + 1)
+               for i in range(6)]
+    matieres = [Matiere(1, "Maths")]
+    prof = Professeur(1, "Unique", "Prof", matieres_ids=[1],
+                      max_heures_consecutives=6, max_heures_par_jour=6)
+    cours = [CoursRequis(i + 1, i + 1, 1, 1, heures_par_semaine=1)
+             for i in range(6)]
+
+    reglages = dict(
+        trous_professeurs=0, trous_doubles_professeurs=0,
+        journee_hachee_professeur=0, heure_isolee_professeur=0,
+        recompense_permanence=0, penalites_seance={},
+        equite_derniere_seance=0, equilibrage_charge_classes=0,
+        demi_journees_travaillees_classes=0,
+        jours_presence_professeurs=10)
+
+    def charges(penalites):
+        resultat = SolveurEmploiDuTemps(
+            grille=grille, salles=salles, matieres=matieres,
+            professeurs=[prof], classes=classes, cours_requis=cours,
+            options=Options(limite_secondes=25, zero_trou_classes=False),
+            ponderations=Ponderations(
+                penalites_heures_par_jour=penalites, **reglages)).resoudre()
+        assert resultat.reussi, resultat.statut
+        return evaluer(resultat.lecons, grille, salles, matieres, [prof],
+                       classes, cours).charges_quotidiennes_professeurs
+
+    # Sans les seuils, la journée unique de six heures est optimale.
+    assert charges({}) == {6: 1}
+    # Avec eux, l'enseignant vient deux jours et ne dépasse jamais quatre
+    # heures : le seuil de cinq heures n'est plus atteint.
+    reparti = charges({5: 15, 6: 45})
+    assert sum(n * j for n, j in reparti.items()) == 6, reparti
+    assert max(reparti) <= 4, reparti
+
+
 def test_probleme_infaisable_retourne_un_diagnostic_lisible():
     grille = GrilleHoraire.construire(jours=["Dimanche", "Lundi"],
                                       seances_matin=[("08:00", "09:00")],

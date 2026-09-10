@@ -612,6 +612,30 @@ class SolveurEmploiDuTemps:
                     modele.Add(sum(permanences_prof)
                                <= self.options.permanences_max_par_prof)
 
+        # ── S12 — charge quotidienne des professeurs ──────────────
+        # Une journée de six heures de cours n'est pas une journée de
+        # cinq heures plus une : les seuils se cumulent pour que chaque
+        # heure supplémentaire coûte plus cher que la précédente.
+        seuils = {n: poids for n, poids in p.penalites_heures_par_jour.items()
+                  if poids}
+        if seuils:
+            for prof in self.professeurs:
+                for jour, creneaux_j in self._par_jour.items():
+                    du_jour = [b_prof[(prof.id, c.id)] for c in creneaux_j
+                               if (prof.id, c.id) in b_prof]
+                    if not du_jour:
+                        continue
+                    heures = sum(du_jour)
+                    for seuil, poids in sorted(seuils.items()):
+                        if seuil > len(du_jour):
+                            continue          # inatteignable ce jour-là
+                        atteint = modele.NewBoolVar(
+                            f"charge_p{prof.id}_{jour}_{seuil}")
+                        modele.Add(heures >= seuil).OnlyEnforceIf(atteint)
+                        modele.Add(heures <= seuil - 1).OnlyEnforceIf(
+                            atteint.Not())
+                        termes.append(poids * atteint)
+
         # ── S4 — jours de présence des professeurs ────────────────
         if p.jours_presence_professeurs:
             for jours in getattr(self, "_jours_prof", {}).values():

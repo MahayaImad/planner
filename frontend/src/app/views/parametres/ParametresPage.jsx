@@ -86,6 +86,10 @@ export default function ParametresPage() {
 
   const { grille, ponderations } = params;
   const nbSeances = grille.horaires.length;
+  // Seuils de charge quotidienne proposés : trois heures est le plancher
+  // en dessous duquel pénaliser une journée n'a plus de sens.
+  const seuilsCharge = Array.from(
+    { length: Math.max(nbSeances - 2, 0) }, (_, i) => i + 3);
 
   const majGrille = (patch) => setParams({ ...params, grille: { ...grille, ...patch } });
   const majPoids = (cle, valeur) =>
@@ -315,6 +319,32 @@ export default function ParametresPage() {
                   value={ponderations.penalites_seance?.[i] ?? 0}
                   onChange={(e) => majPoids("penalites_seance", {
                     ...ponderations.penalites_seance, [i]: +e.target.value,
+                  })}
+                />
+              ))}
+            </Box>
+
+            <Divider sx={{ my: 3 }} />
+            <Typography variant="subtitle2" fontWeight={700} mb={0.5}>
+              Charge quotidienne des professeurs
+            </Typography>
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              Coût d'atteindre un nombre d'heures de cours dans la même
+              journée. Les seuils se cumulent : avec 15 à cinq heures et 45
+              à six, une journée de six heures coûte 60 et chaque heure
+              supplémentaire pèse plus que la précédente.
+            </Typography>
+            <Box display="grid" sx={{
+              gridTemplateColumns: `repeat(${Math.min(seuilsCharge.length, 5)}, 1fr)`,
+              gap: 1.5,
+            }}>
+              {seuilsCharge.map((n) => (
+                <TextField
+                  key={n} size="small" type="number" label={`${n} h dans la journée`}
+                  inputProps={{ min: 0, max: 1000 }}
+                  value={ponderations.penalites_heures_par_jour?.[n] ?? 0}
+                  onChange={(e) => majPoids("penalites_heures_par_jour", {
+                    ...ponderations.penalites_heures_par_jour, [n]: +e.target.value,
                   })}
                 />
               ))}

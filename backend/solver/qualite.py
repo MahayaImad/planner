@@ -6,7 +6,7 @@ ces indicateurs mesurent ce qu'un directeur d'établissement regarde en
 premier. Ils servent aussi de garde-fou dans les tests.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Sequence
 
@@ -47,6 +47,8 @@ class Metriques:
     charge_journaliere_min: int = 0
     charge_journaliere_max: int = 0
     jours_presence_professeurs: Dict[str, int] = field(default_factory=dict)
+    # Nombre de journées-professeur par volume horaire : {5: 12, 6: 3}.
+    charges_quotidiennes_professeurs: Dict[int, int] = field(default_factory=dict)
     seances_doubles: int = 0
     heures_lourdes_apres_midi: int = 0
 
@@ -79,6 +81,8 @@ class Metriques:
             f"Jours de présence des professeurs     : "
             f"{min(self.jours_presence_professeurs.values()) if self.jours_presence_professeurs else 0}"
             f"–{max(self.jours_presence_professeurs.values()) if self.jours_presence_professeurs else 0}",
+            f"Charge quotidienne des professeurs    : "
+            f"{self.charges_quotidiennes_professeurs}",
             f"Séances doubles constituées           : {self.seances_doubles // 2}",
             f"Séances 7 par classe (équité)         : "
             f"{self.seances_tardives_min}–{self.seances_tardives_max}",
@@ -237,6 +241,9 @@ def evaluer(
     if seances_tardives:
         m.seances_tardives_min = min(seances_tardives.values())
         m.seances_tardives_max = max(seances_tardives.values())
+
+    charges = Counter(len(positions) for positions in occ_prof_jour.values())
+    m.charges_quotidiennes_professeurs = dict(sorted(charges.items()))
 
     m.jours_presence_professeurs = {
         idx_profs[pid].nom_complet: len(v) for pid, v in jours_prof.items()

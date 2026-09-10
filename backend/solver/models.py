@@ -376,6 +376,12 @@ class Ponderations:
     heure_isolee_professeur: int = 12
     # Chaque jour de présence en moins est un jour libéré.
     jours_presence_professeurs: int = 3
+    # Charge quotidienne : atteindre N heures de cours dans la journée
+    # coûte ce poids, EN PLUS de ceux des seuils inférieurs. Une journée
+    # de 6 h paie donc le seuil 5 et le seuil 6 : la fatigue ne croît
+    # pas linéairement, les dernières heures pèsent plus lourd.
+    penalites_heures_par_jour: Dict[int, int] = field(
+        default_factory=lambda: {5: 15, 6: 45})
     # Bonus quand un trou est comblé par une heure de permanence
     # (accueil, étude surveillée) : le professeur est présent utilement.
     recompense_permanence: int = 4

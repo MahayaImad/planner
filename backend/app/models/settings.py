@@ -23,6 +23,7 @@ PONDERATIONS_DEFAUT = {
     "journee_hachee_professeur": 80,
     "heure_isolee_professeur": 12,
     "jours_presence_professeurs": 3,
+    "penalites_heures_par_jour": {"5": 15, "6": 45},
     "recompense_permanence": 4,
     "penalites_seance": {"0": 20, "3": 8, "4": 10, "5": 30, "6": 150},
     "equite_derniere_seance": 25,

@@ -32,6 +32,9 @@ class PonderationsInput(BaseModel):
     journee_hachee_professeur: int = 80
     heure_isolee_professeur: int = 12
     jours_presence_professeurs: int = 3
+    # Atteindre N heures de cours dans la journée coûte ce poids,
+    # en plus de ceux des seuils inférieurs.
+    penalites_heures_par_jour: Dict[int, int] = {5: 15, 6: 45}
     recompense_permanence: int = 4
     # Coût d'occupation par séance, indexée à partir de 0 : la séance
     # « slot N » de l'établissement porte l'index N-1.
