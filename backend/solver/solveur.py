@@ -498,10 +498,7 @@ class SolveurEmploiDuTemps:
         if besoin_service:
             for prof in self.professeurs:
                 permanences_prof = []
-                # Débuts de trou, regroupés par JOUR : un trou le matin et
-                # un autre l'après-midi font bien deux coupures dans la
-                # même journée.
-                debuts_par_jour: Dict[str, List] = defaultdict(list)
+
                 for (jour, demi), creneaux_dj in self._par_demi_journee.items():
                     occ = [b_prof[(prof.id, c.id)] for c in creneaux_dj]
                     n = len(occ)
@@ -572,30 +569,43 @@ class SolveurEmploiDuTemps:
                             modele.Add(double >= a + b - 1)
                             termes.append(p.trous_doubles_professeurs * double)
 
-                    # S11 — début d'une coupure : une séance creuse qui ne
-                    # suit pas une autre séance creuse ouvre un nouveau
-                    # trou. Les compter donne le nombre de coupures de la
-                    # journée, indépendamment de leur longueur.
-                    if p.journee_hachee_professeur:
-                        for i, trou in enumerate(trous):
-                            debut_trou = modele.NewBoolVar(
-                                f"deb_trou_p{prof.id}_{jour}_{demi}_{i}")
-                            if i == 0:
-                                modele.Add(debut_trou >= trou)
-                            else:
-                                modele.Add(debut_trou >= trou - trous[i - 1])
-                            debuts_par_jour[jour].append(debut_trou)
 
-                # S11 — journée hachée. Le premier trou de la journée est
-                # déjà facturé par S1 ; chaque coupure supplémentaire
-                # ajoute ce surcoût.
+                # S11 — journée hachée, mesurée sur la JOURNÉE ENTIÈRE.
+                #
+                # S1 et S2 raisonnent par demi-journée, car la pause du
+                # déjeuner n'est pas une heure creuse. Mais une séance
+                # libre juste avant le déjeuner, suivie d'un cours
+                # l'après-midi, laisse bien l'enseignant sur place sans
+                # rien à faire : de son point de vue, sa journée est
+                # trouée deux fois. Ce critère prend donc la journée de
+                # la première à la dernière heure de cours.
                 if p.journee_hachee_professeur:
-                    for jour, debuts in debuts_par_jour.items():
-                        if len(debuts) < 2:
+                    for jour, creneaux_jour in self._par_jour.items():
+                        occ_jour = [b_prof[(prof.id, c.id)]
+                                    for c in creneaux_jour]
+                        n_jour = len(occ_jour)
+                        if n_jour < 3:
                             continue
-                        surplus = modele.NewIntVar(
-                            0, len(debuts), f"hachee_p{prof.id}_{jour}")
-                        modele.Add(surplus >= sum(debuts) - 1)
+
+                        present = modele.NewBoolVar(f"presj_p{prof.id}_{jour}")
+                        modele.AddMaxEquality(present, occ_jour)
+                        premier = modele.NewIntVar(0, n_jour - 1,
+                                                   f"prem_p{prof.id}_{jour}")
+                        dernier = modele.NewIntVar(0, n_jour - 1,
+                                                   f"dern_p{prof.id}_{jour}")
+                        for i, var in enumerate(occ_jour):
+                            modele.Add(premier <= i).OnlyEnforceIf(var)
+                            modele.Add(dernier >= i).OnlyEnforceIf(var)
+
+                        # Heures creuses au-delà de la première : la
+                        # première est déjà facturée par S1.
+                        surplus = modele.NewIntVar(0, n_jour,
+                                                   f"hachee_p{prof.id}_{jour}")
+                        modele.Add(
+                            surplus >= dernier - premier + 1
+                            - sum(occ_jour) - 1
+                        ).OnlyEnforceIf(present)
+                        modele.Add(surplus == 0).OnlyEnforceIf(present.Not())
                         termes.append(p.journee_hachee_professeur * surplus)
 
                 if permanences_prof and self.options.permanences_max_par_prof is not None:

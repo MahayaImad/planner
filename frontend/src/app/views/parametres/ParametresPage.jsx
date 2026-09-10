@@ -38,10 +38,11 @@ const CRITERES = [
   { cle: "trous_doubles_professeurs", label: "Vide de deux heures",
     aide: "Deux heures creuses d'affilée : bien pire qu'une seule." },
   { cle: "journee_hachee_professeur", label: "Journée hachée",
-    aide: "Plusieurs coupures séparées dans la même journée (cours, "
-        + "libre, cours, libre…). L'enseignant reste sur place sans "
-        + "jamais disposer d'un vrai temps libre. Compté par coupure "
-        + "au-delà de la première." },
+    aide: "Plus d'une heure creuse dans la même journée (cours, libre, "
+        + "cours, libre…). Mesuré de la première à la dernière heure de "
+        + "cours, pause déjeuner comprise dans l'amplitude : une séance "
+        + "libre avant midi suivie d'un cours l'après-midi compte. "
+        + "Facturé par heure au-delà de la première." },
   { cle: "heure_isolee_professeur", label: "Déplacement pour une seule heure",
     aide: "Le professeur ne vient qu'une heure sur la demi-journée." },
   { cle: "jours_presence_professeurs", label: "Jour de présence",
@@ -288,7 +289,7 @@ export default function ParametresPage() {
                 </Box>
                 <Typography variant="caption" color="text.secondary">{aide}</Typography>
                 <Slider
-                  size="small" min={0} max={80} step={1}
+                  size="small" min={0} max={150} step={5}
                   value={ponderations[cle] ?? 0}
                   onChange={(_, v) => majPoids(cle, v)}
                 />

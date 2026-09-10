@@ -20,7 +20,7 @@ GRILLE_DEFAUT = {
 PONDERATIONS_DEFAUT = {
     "trous_professeurs": 6,
     "trous_doubles_professeurs": 25,
-    "journee_hachee_professeur": 40,
+    "journee_hachee_professeur": 80,
     "heure_isolee_professeur": 12,
     "jours_presence_professeurs": 3,
     "recompense_permanence": 4,

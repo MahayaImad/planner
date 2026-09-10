@@ -24,8 +24,14 @@ class Metriques:
     trous_classes: int = 0
     trous_professeurs: int = 0
     trous_doubles_professeurs: int = 0
-    # Journées où un enseignant subit plusieurs coupures séparées.
+    # Journées où un enseignant subit plus d'une heure creuse.
     journees_hachees_professeurs: int = 0
+    heures_creuses_en_trop: int = 0
+    # Heures creuses vues sur la journée entière (pause déjeuner incluse
+    # dans l'amplitude) : toujours ≥ trous_professeurs, qui les compte
+    # par demi-journée.
+    heures_creuses_journee: int = 0
+    # Coupures séparées au-delà de la première, à titre indicatif.
     coupures_en_trop: int = 0
     heures_isolees_professeurs: int = 0
     salles_empruntees_fouj: Dict[str, int] = field(default_factory=dict)
@@ -54,9 +60,11 @@ class Metriques:
             f"Trous dans les journées des classes   : {self.trous_classes}",
             f"Trous dans les journées des profs     : {self.trous_professeurs}"
             f"  (dont vides de 2 h : {self.trous_doubles_professeurs})",
-            f"Journées hachées (plusieurs coupures) : "
+            f"Heures creuses vues sur la journée    : {self.heures_creuses_journee}",
+            f"Journées à plus d'une heure creuse    : "
             f"{self.journees_hachees_professeurs}"
-            f"  (coupures en trop : {self.coupures_en_trop})",
+            f"  (heures en trop : {self.heures_creuses_en_trop},"
+            f" coupures séparées en trop : {self.coupures_en_trop})",
             f"Demi-journées à une seule heure (prof) : {self.heures_isolees_professeurs}",
             f"Heures de permanence attribuées       : {self.permanences}",
             f"Dépassements de capacité des salles   : {self.depassements_capacite}",
@@ -110,6 +118,8 @@ def evaluer(
     # par créneau, sans quoi les trous et les charges sont faussés.
     occ_classe = defaultdict(set)     # (classe, jour, demi) → {index}
     occ_prof = defaultdict(set)
+    # Occupation sur la journée entière, pour le critère de journée hachée.
+    occ_prof_jour = defaultdict(set)
     salles_vues = defaultdict(set)          # hors fouj : salle attitrée
     salles_fouj = defaultdict(set)
     charge_jour = defaultdict(set)
@@ -127,6 +137,8 @@ def evaluer(
             creneau.index_demi_journee)
         occ_prof[(lecon.professeur_id, creneau.jour, creneau.demi_journee)].add(
             creneau.index_demi_journee)
+        occ_prof_jour[(lecon.professeur_id, creneau.jour)].add(
+            creneau.index_dans_jour)
 
         if cr and cr.couplage_id:
             salles_fouj[lecon.classe_id].add(lecon.salle_id)
@@ -179,22 +191,30 @@ def evaluer(
     # Coupures par journée : un trou le matin et un autre l'après-midi
     # font deux coupures dans la même journée, même si aucune des deux
     # demi-journées n'est trouée deux fois.
+    # Journée entière, de la première à la dernière heure de cours. Une
+    # séance libre juste avant le déjeuner suivie d'un cours l'après-midi
+    # est bien une heure creuse pour l'enseignant, même si le découpage
+    # en demi-journées ne la voit pas.
+    creux_par_jour = defaultdict(int)
     coupures_par_jour = defaultdict(int)
-    for (prof_id, jour, _), positions in occ_prof.items():
+    for (prof_id, jour), positions in occ_prof_jour.items():
         indices = sorted(positions)
         if len(indices) < 2:
             continue
-        occupees = set(indices)
         precedent_creux = False
         for i in range(indices[0], indices[-1] + 1):
-            creux = i not in occupees
-            if creux and not precedent_creux:
-                coupures_par_jour[(prof_id, jour)] += 1
+            creux = i not in positions
+            if creux:
+                creux_par_jour[(prof_id, jour)] += 1
+                if not precedent_creux:
+                    coupures_par_jour[(prof_id, jour)] += 1
             precedent_creux = creux
-    for nombre in coupures_par_jour.values():
-        if nombre > 1:
+    for cle, heures_creuses in creux_par_jour.items():
+        m.heures_creuses_journee += heures_creuses
+        if heures_creuses > 1:
             m.journees_hachees_professeurs += 1
-            m.coupures_en_trop += nombre - 1
+            m.heures_creuses_en_trop += heures_creuses - 1
+        m.coupures_en_trop += max(0, coupures_par_jour[cle] - 1)
 
     m.salles_par_classe = {
         idx_classes[cid].nom: len(v) for cid, v in salles_vues.items()

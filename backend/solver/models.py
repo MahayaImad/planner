@@ -360,13 +360,17 @@ class Ponderations:
     # Surcoût d'un trou de deux heures d'affilée : un vide de 2 h est
     # bien pire que deux trous d'une heure situés à des jours différents.
     trous_doubles_professeurs: int = 25
-    # Journée hachée : plusieurs trous SÉPARÉS dans la même journée
-    # (occupé, libre, occupé, libre, occupé…). L'enseignant reste sur
-    # place toute la journée sans jamais disposer d'un vrai temps
-    # libre : c'est plus pénible qu'un unique vide de deux heures, d'où
-    # un poids supérieur. Compté par trou au-delà du premier de la
-    # journée, les deux demi-journées confondues.
-    journee_hachee_professeur: int = 40
+    # Journée hachée : plus d'une heure creuse dans la même journée,
+    # qu'elles se suivent ou non (occupé, libre, occupé, libre…).
+    # L'enseignant reste sur place du matin au soir sans jamais
+    # disposer d'un vrai temps libre. Compté par heure creuse au-delà
+    # de la PREMIÈRE de la journée, les deux demi-journées confondues,
+    # et pesé au-dessus du vide de deux heures.
+    #
+    # Mesuré sur un CEM de 20 divisions : sans ce poids, 11 journées
+    # d'enseignant comptent plus d'une heure creuse ; à 40 il en reste
+    # une, à 80 aucune.
+    journee_hachee_professeur: int = 80
     # Professeur qui ne vient assurer qu'une seule heure sur la
     # demi-journée : déplacement disproportionné.
     heure_isolee_professeur: int = 12
