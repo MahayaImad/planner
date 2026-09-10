@@ -30,7 +30,10 @@ export default [
       ...reactHooks.configs.recommended.rules,
       "react/jsx-no-target-blank": "off",
       "react/no-unescaped-entities": 0,
-      "no-undef": 0,
+      // Un identifiant non importé passait à la compilation et ne se
+      // voyait qu'à l'exécution : l'écran des emplois du temps est
+      // resté vide une journée pour un « parametresApi » oublié.
+      "no-undef": "error",
       "react/prop-types": 0,
       "react/display-name": 0,
       "react-refresh/only-export-components": 0

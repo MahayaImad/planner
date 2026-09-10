@@ -7,7 +7,6 @@ import { Fragment, useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
-import Grid from "@mui/material/Grid2";
 import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import Icon from "@mui/material/Icon";
@@ -22,7 +21,7 @@ import Tooltip from "@mui/material/Tooltip";
 import { styled } from "@mui/material/styles";
 import { useSnackbar } from "notistack";
 import {
-  edtApi, professeursApi, matieresApi, sallesApi, classesApi,
+  edtApi, professeursApi, matieresApi, sallesApi, classesApi, parametresApi,
 } from "app/services/api";
 import GenererDialog from "./GenererDialog";
 
@@ -67,7 +66,10 @@ export default function EdtDetail() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [l, p, m, s, c, r] = await Promise.all([
+      // allSettled plutôt que all : si un appel secondaire échoue,
+      // les leçons doivent rester affichées. Un écran vide alors que la
+      // génération vient d'aboutir est le pire des retours.
+      const [l, p, m, s, c, r] = await Promise.allSettled([
         edtApi.lecons(id),
         professeursApi.liste(),
         matieresApi.liste(),
@@ -75,13 +77,22 @@ export default function EdtDetail() {
         classesApi.liste(),
         parametresApi.lire(),
       ]);
-      setGrille(r.data.grille);
-      setLecons(l.data);
-      setProfesseurs(p.data);
-      setMatieres(m.data);
-      setSalles(s.data);
-      setClasses(c.data);
-      if (c.data.length > 0 && !filtreId) setFiltreId(String(c.data[0].id));
+      const valeur = (x, defaut) =>
+        x.status === "fulfilled" ? x.value.data : defaut;
+
+      setGrille(r.status === "fulfilled" ? r.value.data.grille : null);
+      setLecons(valeur(l, []));
+      setProfesseurs(valeur(p, []));
+      setMatieres(valeur(m, []));
+      setSalles(valeur(s, []));
+      const listeClasses = valeur(c, []);
+      setClasses(listeClasses);
+      // Mise à jour fonctionnelle : lire filtreId ici obligerait à le
+      // déclarer en dépendance, et tout changement de filtre
+      // relancerait le chargement.
+      if (listeClasses.length > 0) {
+        setFiltreId((actuel) => actuel || String(listeClasses[0].id));
+      }
     } finally {
       setLoading(false);
     }

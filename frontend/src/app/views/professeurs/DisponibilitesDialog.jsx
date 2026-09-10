@@ -99,7 +99,7 @@ export default function DisponibilitesDialog({ profId, onClose }) {
               ))}
 
               {/* Lignes séances */}
-              {SEANCES.map(([heure, fin], indexSeance) => (
+              {SEANCES.map(([heure], indexSeance) => (
                 <Fragment key={`s-${indexSeance}`}>
                   <Box display="flex" alignItems="center">
                     <Typography variant="caption" color="text.secondary">{heure}</Typography>

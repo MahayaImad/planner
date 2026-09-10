@@ -24,6 +24,15 @@ const ContentBox = styled("div")(() => ({
   background: "rgba(0, 0, 0, 0.01)"
 }));
 
+// JustifyBox n'a jamais été importé ni défini : cette page plantait
+// à l'affichage. Elle n'est pas routée (l'inscription passe par
+// PlannerRegister), ce qui a masqué l'erreur.
+const JustifyBox = styled("div")(() => ({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+}));
+
 const JWTRegister = styled(JustifyBox)(() => ({
   background: "#1A2038",
   minHeight: "100vh !important",

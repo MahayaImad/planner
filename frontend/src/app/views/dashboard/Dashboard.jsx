@@ -5,7 +5,7 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Icon from "@mui/material/Icon";
 import Button from "@mui/material/Button";
-import { styled, useTheme } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Chip from "@mui/material/Chip";
@@ -55,7 +55,6 @@ const STATS = [
 ];
 
 export default function Dashboard() {
-  const theme = useTheme();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const [counts, setCounts] = useState({ professeurs: 0, matieres: 0, salles: 0, classes: 0, edts: 0 });

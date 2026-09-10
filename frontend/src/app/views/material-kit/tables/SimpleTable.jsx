@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 
 // STYLED COMPONENT
-const StyledTable = styled(Table)(({ theme }) => ({
+const StyledTable = styled(Table)(() => ({
   whiteSpace: "pre",
   "& thead": {
     "& tr": { "& th": { paddingLeft: 0, paddingRight: 0 } }
