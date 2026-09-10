@@ -24,6 +24,9 @@ class Metriques:
     trous_classes: int = 0
     trous_professeurs: int = 0
     trous_doubles_professeurs: int = 0
+    # Journées où un enseignant subit plusieurs coupures séparées.
+    journees_hachees_professeurs: int = 0
+    coupures_en_trop: int = 0
     heures_isolees_professeurs: int = 0
     salles_empruntees_fouj: Dict[str, int] = field(default_factory=dict)
     seances_tardives_min: int = 0
@@ -51,6 +54,9 @@ class Metriques:
             f"Trous dans les journées des classes   : {self.trous_classes}",
             f"Trous dans les journées des profs     : {self.trous_professeurs}"
             f"  (dont vides de 2 h : {self.trous_doubles_professeurs})",
+            f"Journées hachées (plusieurs coupures) : "
+            f"{self.journees_hachees_professeurs}"
+            f"  (coupures en trop : {self.coupures_en_trop})",
             f"Demi-journées à une seule heure (prof) : {self.heures_isolees_professeurs}",
             f"Heures de permanence attribuées       : {self.permanences}",
             f"Dépassements de capacité des salles   : {self.depassements_capacite}",
@@ -169,6 +175,26 @@ def evaluer(
     m.trous_classes, _, _ = mesurer_trous(occ_classe)
     m.trous_professeurs, m.trous_doubles_professeurs, m.heures_isolees_professeurs = \
         mesurer_trous(occ_prof)
+
+    # Coupures par journée : un trou le matin et un autre l'après-midi
+    # font deux coupures dans la même journée, même si aucune des deux
+    # demi-journées n'est trouée deux fois.
+    coupures_par_jour = defaultdict(int)
+    for (prof_id, jour, _), positions in occ_prof.items():
+        indices = sorted(positions)
+        if len(indices) < 2:
+            continue
+        occupees = set(indices)
+        precedent_creux = False
+        for i in range(indices[0], indices[-1] + 1):
+            creux = i not in occupees
+            if creux and not precedent_creux:
+                coupures_par_jour[(prof_id, jour)] += 1
+            precedent_creux = creux
+    for nombre in coupures_par_jour.values():
+        if nombre > 1:
+            m.journees_hachees_professeurs += 1
+            m.coupures_en_trop += nombre - 1
 
     m.salles_par_classe = {
         idx_classes[cid].nom: len(v) for cid, v in salles_vues.items()

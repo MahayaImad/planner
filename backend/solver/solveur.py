@@ -493,10 +493,15 @@ class SolveurEmploiDuTemps:
         besoin_service = any((
             p.trous_professeurs, p.trous_doubles_professeurs,
             p.heure_isolee_professeur, p.recompense_permanence,
+            p.journee_hachee_professeur,
         ))
         if besoin_service:
             for prof in self.professeurs:
                 permanences_prof = []
+                # Débuts de trou, regroupés par JOUR : un trou le matin et
+                # un autre l'après-midi font bien deux coupures dans la
+                # même journée.
+                debuts_par_jour: Dict[str, List] = defaultdict(list)
                 for (jour, demi), creneaux_dj in self._par_demi_journee.items():
                     occ = [b_prof[(prof.id, c.id)] for c in creneaux_dj]
                     n = len(occ)
@@ -516,7 +521,8 @@ class SolveurEmploiDuTemps:
                         termes.append(p.heure_isolee_professeur * isolee)
 
                     if not (p.trous_professeurs or p.trous_doubles_professeurs
-                            or p.recompense_permanence):
+                            or p.recompense_permanence
+                            or p.journee_hachee_professeur):
                         continue
 
                     # Amplitude de présence : de la première à la dernière heure.
@@ -565,6 +571,32 @@ class SolveurEmploiDuTemps:
                             double = modele.NewBoolVar("")
                             modele.Add(double >= a + b - 1)
                             termes.append(p.trous_doubles_professeurs * double)
+
+                    # S11 — début d'une coupure : une séance creuse qui ne
+                    # suit pas une autre séance creuse ouvre un nouveau
+                    # trou. Les compter donne le nombre de coupures de la
+                    # journée, indépendamment de leur longueur.
+                    if p.journee_hachee_professeur:
+                        for i, trou in enumerate(trous):
+                            debut_trou = modele.NewBoolVar(
+                                f"deb_trou_p{prof.id}_{jour}_{demi}_{i}")
+                            if i == 0:
+                                modele.Add(debut_trou >= trou)
+                            else:
+                                modele.Add(debut_trou >= trou - trous[i - 1])
+                            debuts_par_jour[jour].append(debut_trou)
+
+                # S11 — journée hachée. Le premier trou de la journée est
+                # déjà facturé par S1 ; chaque coupure supplémentaire
+                # ajoute ce surcoût.
+                if p.journee_hachee_professeur:
+                    for jour, debuts in debuts_par_jour.items():
+                        if len(debuts) < 2:
+                            continue
+                        surplus = modele.NewIntVar(
+                            0, len(debuts), f"hachee_p{prof.id}_{jour}")
+                        modele.Add(surplus >= sum(debuts) - 1)
+                        termes.append(p.journee_hachee_professeur * surplus)
 
                 if permanences_prof and self.options.permanences_max_par_prof is not None:
                     modele.Add(sum(permanences_prof)

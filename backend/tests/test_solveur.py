@@ -476,6 +476,73 @@ def test_cem20_fouj_synchrones_et_dans_deux_salles():
                 f"{couplage} : les deux demi-groupes partagent une salle")
 
 
+def test_journee_hachee_est_evitee():
+    """
+    Une journée « cours, libre, cours, libre… » est plus pénible qu'une
+    seule longue coupure. Sans ce poids, la pénalité des vides de deux
+    heures pousse au contraire à éparpiller les trous.
+
+    Le montage ne laisse que la FORME des creux libre : deux cours sont
+    épinglés aux extrémités de la journée, donc trois heures creuses
+    sont inévitables.
+    """
+    horaires = [(f"{8 + i:02d}:00", f"{8 + i:02d}:55") for i in range(7)]
+    grille = GrilleHoraire.depuis_configuration(
+        ["Dimanche"], horaires, [("journee", list(range(7)))])
+    par_seance = {c.index_seance: c.id for c in grille.creneaux}
+    tous = set(par_seance.values())
+
+    salles = [Salle(i + 1, f"S{i + 1}", 40) for i in range(4)]
+    classes = [Classe(i + 1, f"C{i + 1}", effectif=30,
+                      salle_attitree_id=i + 1, max_heures_par_jour=7)
+               for i in range(4)]
+    matieres = [Matiere(1, "Maths")]
+    prof = Professeur(1, "Unique", "Prof", matieres_ids=[1],
+                      max_heures_consecutives=7, max_heures_par_jour=7)
+
+    def cours():
+        liste = []
+        for i in range(4):
+            interdits = set()
+            if i == 0:
+                interdits = tous - {par_seance[0]}
+            elif i == 3:
+                interdits = tous - {par_seance[6]}
+            liste.append(CoursRequis(i + 1, i + 1, 1, 1, heures_par_semaine=1,
+                                     max_heures_par_jour=1,
+                                     creneaux_interdits=interdits))
+        return liste
+
+    def resoudre(poids):
+        ponderations = Ponderations(
+            trous_professeurs=6, trous_doubles_professeurs=25,
+            heure_isolee_professeur=0, jours_presence_professeurs=0,
+            recompense_permanence=0, penalites_seance={},
+            equite_derniere_seance=0, equilibrage_charge_classes=0,
+            demi_journees_travaillees_classes=0,
+            journee_hachee_professeur=poids)
+        liste = cours()
+        resultat = SolveurEmploiDuTemps(
+            grille=grille, salles=salles, matieres=matieres,
+            professeurs=[prof], classes=classes, cours_requis=liste,
+            options=Options(limite_secondes=25, zero_trou_classes=False),
+            ponderations=ponderations).resoudre()
+        assert resultat.reussi, resultat.statut
+        return evaluer(resultat.lecons, grille, salles, matieres, [prof],
+                       classes, liste)
+
+    # Sans le poids, le solveur éparpille : c'est l'effet à corriger.
+    sans = resoudre(0)
+    assert sans.coupures_en_trop >= 1, "le montage ne discrimine plus"
+
+    # Avec, il regroupe les creux en une seule coupure.
+    avec = resoudre(40)
+    assert avec.coupures_en_trop == 0, avec.coupures_en_trop
+    assert avec.journees_hachees_professeurs == 0
+    # Le nombre total d'heures creuses ne change pas : seule leur forme.
+    assert avec.trous_professeurs == sans.trous_professeurs
+
+
 def test_probleme_infaisable_retourne_un_diagnostic_lisible():
     grille = GrilleHoraire.construire(jours=["Dimanche", "Lundi"],
                                       seances_matin=[("08:00", "09:00")],

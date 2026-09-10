@@ -28,6 +28,8 @@ class PonderationsInput(BaseModel):
     """
     trous_professeurs: int = 6
     trous_doubles_professeurs: int = 25
+    # Coupures supplémentaires dans une même journée.
+    journee_hachee_professeur: int = 40
     heure_isolee_professeur: int = 12
     jours_presence_professeurs: int = 3
     recompense_permanence: int = 4
