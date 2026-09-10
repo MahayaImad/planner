@@ -60,7 +60,7 @@ def main() -> int:
     from app.services import generation
     from app.services.auth import hacher_mot_de_passe
 
-    from tests import donnees_cem20 as source
+    from donnees import cem20 as source
 
     print("═" * 68)
     print("  IMPORT — CEM 20 divisions, base neuve")

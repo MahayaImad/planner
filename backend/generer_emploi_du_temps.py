@@ -28,7 +28,7 @@ def charger(reference: bool):
         from tests import donnees_test as d
         d.fenetres_pedagogiques = []
         return d, "CEM Ibn Khaldoun — jeu de référence"
-    from tests import donnees_cem20 as d
+    from donnees import cem20 as d
     return d, "CEM 20 divisions — ALGERIAN_CEM_20CLASSES"
 
 

@@ -358,7 +358,7 @@ def test_indisponibilites_sont_respectees():
 # ── CEM réel à 20 divisions ───────────────────────────────────────
 
 def _cem20():
-    from tests import donnees_cem20 as d
+    from donnees import cem20 as d
     return d
 
 

@@ -208,10 +208,11 @@ export default function Dashboard() {
                   {demo.description}
                 </Typography>
                 <Box display="flex" flexWrap="wrap" gap={0.75} mb={2}>
-                  <Chip size="small" label={`${demo.classes} classes`} />
+                  <Chip size="small" label={`${demo.classes} divisions`} />
                   <Chip size="small" label={`${demo.professeurs} enseignants`} />
                   <Chip size="small" label={`${demo.matieres} matières`} />
                   <Chip size="small" label={`${demo.salles} salles`} />
+                  <Chip size="small" label={`${demo.lignes_programme} lignes de programme`} />
                   <Chip size="small" color="primary" variant="outlined"
                         label={`${demo.lecons_a_placer} leçons à placer`} />
                 </Box>
@@ -289,15 +290,25 @@ export default function Dashboard() {
             Cette action crée dans votre établissement :
           </Typography>
           <Box component="ul" sx={{ pl: 3, m: 0, "& li": { mb: 0.5 } }}>
-            <li><b>{demo?.matieres} matières</b>, dont trois exigeant une
+            <li><b>{demo?.matieres} matières</b>, dont plusieurs exigeant une
                 salle spécialisée (laboratoire, informatique, terrain)</li>
             <li><b>{demo?.salles} salles</b> de types différents</li>
-            <li><b>{demo?.classes} classes</b> de {demo?.heures_par_classe} h
+            <li><b>{demo?.classes} divisions</b> de {demo?.heures_par_classe} h
                 hebdomadaires, chacune avec sa salle attitrée</li>
-            <li><b>{demo?.professeurs} enseignants</b>, dont deux bivalents
-                et deux ayant des indisponibilités</li>
+            <li><b>{demo?.professeurs} enseignants</b>, avec leurs plafonds de
+                service et leurs indisponibilités</li>
+            <li>le <b>programme annuel complet</b> — {demo?.lignes_programme} lignes,
+                dédoublements en demi-groupes compris</li>
+            <li><b>{demo?.fenetres_pedagogiques} journées d'inspection</b> et la
+                fermeture du mardi après-midi</li>
             <li>un emploi du temps vide, prêt à générer</li>
           </Box>
+
+          <Alert severity="info" sx={{ mt: 2 }}>
+            C'est un établissement réel, pas une maquette : la génération
+            demande deux à cinq minutes de calcul. Elle se suit en direct
+            et peut être arrêtée à tout moment.
+          </Alert>
 
           {demo?.etablissement_deja_peuple && (
             <Alert severity="error" sx={{ mt: 2 }}>

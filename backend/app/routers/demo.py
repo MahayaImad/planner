@@ -1,7 +1,5 @@
 """Jeu de données de démonstration : découverte et essais."""
 
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -9,7 +7,6 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..deps import get_utilisateur_courant
 from ..models.user import Utilisateur
-from ..schemas.schedule import CoursRequisInput
 from ..services import demonstration
 
 router = APIRouter(prefix="/demonstration", tags=["Démonstration"])
@@ -23,7 +20,9 @@ class ApercuReponse(BaseModel):
     classes: int
     professeurs: int
     heures_par_classe: int
+    lignes_programme: int
     lecons_a_placer: int
+    fenetres_pedagogiques: int
     etablissement_deja_peuple: bool
 
 
@@ -39,16 +38,8 @@ def apercu(
     utilisateur: Utilisateur = Depends(get_utilisateur_courant),
 ):
     """Décrit le jeu de démonstration sans rien créer."""
-    heures = sum(h for _, _, _, h, _ in demonstration.MATIERES)
     return ApercuReponse(
-        nom=demonstration.NOM,
-        description=demonstration.DESCRIPTION,
-        matieres=len(demonstration.MATIERES),
-        salles=len(demonstration.SALLES),
-        classes=len(demonstration.CLASSES),
-        professeurs=len(demonstration.PROFESSEURS),
-        heures_par_classe=heures,
-        lecons_a_placer=heures * len(demonstration.CLASSES),
+        **demonstration.resume(),
         etablissement_deja_peuple=demonstration.deja_peuplee(
             db, utilisateur.ecole_id),
     )
@@ -81,24 +72,8 @@ def charger(
     return {
         **recapitulatif,
         "message": f"{demonstration.NOM} installé : "
-                   f"{recapitulatif['classes']} classes, "
+                   f"{recapitulatif['classes']} divisions, "
                    f"{recapitulatif['professeurs']} enseignants, "
+                   f"{recapitulatif['lignes_programme']} lignes de programme, "
                    f"{recapitulatif['lecons_a_placer']} leçons à planifier.",
     }
-
-
-@router.get("/programme", response_model=List[CoursRequisInput])
-def programme(
-    db: Session = Depends(get_db),
-    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
-):
-    """
-    Cours à planifier correspondant au jeu de démonstration.
-
-    Permet de pré-remplir l'écran de génération au lieu de saisir
-    quarante lignes à la main.
-    """
-    try:
-        return demonstration.programme(db, utilisateur.ecole_id)
-    except LookupError as e:
-        raise HTTPException(status_code=409, detail=str(e))

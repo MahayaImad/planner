@@ -330,7 +330,10 @@ def test_demonstration_refuse_decraser_sans_confirmation():
 
 
 def test_demonstration_produit_un_emploi_du_temps_complet():
-    """Le jeu doit se générer sans intervention : c'est tout son intérêt."""
+    """
+    Le jeu doit se générer sans aucune intervention : programme,
+    réglages et fenêtres sont installés avec lui. C'est tout son intérêt.
+    """
     r = client.post("/auth/inscrire", json={
         "ecole": {"nom": "Demo", "email": "demo-gen@test.dz"},
         "admin": {"nom": "A", "prenom": "B", "email": "demo-gen-a@test.dz",
@@ -340,13 +343,23 @@ def test_demonstration_produit_un_emploi_du_temps_complet():
     installation = client.post("/demonstration/charger", json={},
                                headers=entetes)
     assert installation.status_code == 201, installation.text
-    edt = installation.json()["emploi_du_temps_id"]
+    resume = installation.json()
+    edt = resume["emploi_du_temps_id"]
 
-    programme = client.get("/demonstration/programme", headers=entetes).json()
+    programme = client.get("/programme/", headers=entetes).json()
+    assert len(programme) == resume["lignes_programme"]
     assert sum(c["heures_par_semaine"] for c in programme) == \
-        installation.json()["lecons_a_placer"]
+        resume["lecons_a_placer"]
+    # Les dédoublements en demi-groupes sont repris tels quels.
+    assert {l["couplage_id"] for l in programme if l["couplage_id"]}
 
-    demande = {"cours_requis": programme, "limite_secondes": 60}
+    reglages = client.get("/parametres", headers=entetes).json()
+    assert reglages["grille"]["fermetures"], "le mardi après-midi doit être fermé"
+    fenetres = client.get("/fenetres-pedagogiques", headers=entetes).json()
+    assert len(fenetres) == resume["fenetres_pedagogiques"]
+
+    # Rien d'autre que le temps de calcul n'est envoyé.
+    demande = {"limite_secondes": 120}
     diagnostic = client.post(f"/emplois-du-temps/{edt}/diagnostic",
                              json=demande, headers=entetes).json()
     assert diagnostic["realisable"], diagnostic["erreurs"]
@@ -354,32 +367,25 @@ def test_demonstration_produit_un_emploi_du_temps_complet():
     tache = client.post(f"/emplois-du-temps/{edt}/generer", json=demande,
                         headers=entetes)
     assert tache.status_code == 202
-    etat = _attendre(entetes, edt, tache.json()["id"], delai=120)
+    etat = _attendre(entetes, edt, tache.json()["id"], delai=240)
     assert etat["statut"] == "terminee", etat["message"]
-    assert etat["resultat"]["lecons_planifiees"] == \
-        installation.json()["lecons_a_placer"]
+    assert etat["resultat"]["lecons_planifiees"] == resume["lecons_a_placer"]
     assert etat["resultat"]["qualite"]["trous_classes"] == 0
 
-    # Les indisponibilités du jeu doivent être respectées.
     lecons = client.get(f"/emplois-du-temps/{edt}/lecons", headers=entetes).json()
-    partages = [p for p in client.get("/professeurs/", headers=entetes).json()
-                if p["nom"] == "Cherif"]
-    assert partages, "l'enseignant partagé du jeu est absent"
-    hors_dispo = [l for l in lecons
-                  if l["professeur_id"] == partages[0]["id"]
-                  and l["jour"] == "Jeudi" and l["heure_debut"] >= "13:00"]
-    assert hors_dispo == [], hors_dispo
 
+    # La fermeture enregistrée ne porte aucune leçon.
+    jours = reglages["grille"]["jours"]
+    horaires = [h[0] for h in reglages["grille"]["horaires"]]
+    fermes = {(jours[j], horaires[s])
+              for j, seances in reglages["grille"]["fermetures"] for s in seances}
+    assert not [l for l in lecons if (l["jour"], l["heure_debut"]) in fermes]
 
-def test_demonstration_programme_absent_est_signale():
-    r = client.post("/auth/inscrire", json={
-        "ecole": {"nom": "Sans demo", "email": "sansdemo@test.dz"},
-        "admin": {"nom": "A", "prenom": "B", "email": "sansdemo-a@test.dz",
-                  "mot_de_passe": "motdepasse-solide"}})
-    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
-    reponse = client.get("/demonstration/programme", headers=entetes)
-    assert reponse.status_code == 409
-    assert "démonstration" in reponse.json()["detail"]
+    # Aucune matière ne tombe dans sa fenêtre d'inspection.
+    interdits = {(f["matiere_id"], jours[f["index_jour"]], horaires[s])
+                 for f in fenetres for s in f["seances_bloquees"]}
+    for l in lecons:
+        assert (l["matiere_id"], l["jour"], l["heure_debut"]) not in interdits
 
 
 # ══════════════════════════════════════════════════════════════════

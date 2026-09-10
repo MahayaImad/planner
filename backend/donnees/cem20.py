@@ -84,6 +84,10 @@ for i, ligne in enumerate(csv.DictReader(io.StringIO(MATIERES_CSV)), start=1):
 #  SALLES — la colonne « Capacity » est un NOMBRE DE SALLES
 # ══════════════════════════════════════════════════════════════════
 
+# Nom du type de salle ordinaire dans le parc : tout autre type est
+# une spécialité que seules les matières concernées mobilisent.
+TYPE_SALLE_ORDINAIRE = "classroom"
+
 PARC_SALLES = [
     ("classroom",   20, "R{:02d}",  "Salle {}"),
     ("lab_physics",  4, "LP{}",     "Labo Physique {}"),
@@ -495,7 +499,7 @@ services_non_affectes = [
 
 options = Options(
     limite_secondes=180,
-    type_salle_ordinaire="classroom",
+    type_salle_ordinaire=TYPE_SALLE_ORDINAIRE,
     presence_minimale={"matin": 3},      # min_required_presence
     mode_heure_isolee="PER_SHIFT",
     permanences_max_par_prof=2,

@@ -1,79 +1,71 @@
 """
-Jeu de données de démonstration.
+Jeu de données de démonstration : le CEM à 20 divisions.
 
-Sert à découvrir la plateforme sans rien saisir : un collège réduit mais
-complet, dont chaque élément illustre une notion du modèle — salle
-spécialisée, indisponibilité d'un enseignant, séance double, professeur
-bivalent. Assez petit pour être lu ligne à ligne, et assez contraint
-pour que la génération ait un intérêt.
+Installe l'établissement réel de bout en bout — parc de salles, corps
+enseignant avec ses plafonds de service, programme annuel complet avec
+ses fouj, journées d'inspection et fermeture du mardi après-midi. Rien
+n'est simplifié : c'est le cas qui a servi à régler le solveur, et il
+sert ici à découvrir la plateforme sans rien saisir.
 
-Quatre divisions de 4ᵉ année moyenne, 27 h de cours hebdomadaires,
-7 enseignants, 7 salles.
+Le jeu est décrit une seule fois, dans donnees/cem20.py, et partagé
+avec les tests : un exemple qui diverge de ce qu'on vérifie ne
+prouverait rien.
 """
 
 from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
+from donnees import cem20
+
+from ..models.availability import DisponibiliteProfesseur
 from ..models.class_ import Classe
+from ..models.programme import LigneProgramme
 from ..models.room import Salle
 from ..models.schedule import EmploiDuTemps
+from ..models.settings import FenetrePedagogique, ParametresEtablissement
 from ..models.subject import Matiere
 from ..models.task import TacheGeneration
 from ..models.teacher import Professeur
 
-NOM = "Collège de démonstration"
+NOM = "CEM Ibn Khaldoun — 20 divisions"
 DESCRIPTION = (
-    "Quatre divisions de 4ᵉ année moyenne, 27 h hebdomadaires chacune. "
-    "Le jeu illustre les salles spécialisées (laboratoire, informatique, "
-    "terrain), les enseignants bivalents, les indisponibilités et les "
-    "séances doubles de deux heures."
+    "L'établissement complet : 20 divisions de la 1ʳᵉ à la 4ᵉ année "
+    "moyenne, 39 enseignants, 32 salles. Programme officiel avec ses "
+    "dédoublements en demi-groupes, journées d'inspection, mardi "
+    "après-midi fermé et plafonds de service hebdomadaire."
 )
 
-# (nom, coefficient, type de salle requis, heures/semaine, séances doubles)
-MATIERES = [
-    ("Langue Arabe",        5.0, None,        5, 1),
-    ("Mathématiques",       4.0, None,        5, 1),
-    ("Langue Française",    3.0, None,        4, 1),
-    ("Langue Anglaise",     2.0, None,        3, 0),
-    ("Sciences Naturelles", 2.0, "labo",      2, 0),
-    ("Sciences Physiques",  2.0, "labo",      2, 0),
-    ("Histoire-Géographie", 2.0, None,        2, 0),
-    ("Éducation Islamique", 2.0, None,        1, 0),
-    ("Informatique",        1.0, "info",      1, 0),
-    ("Éducation Physique",  1.0, "sport",     2, 1),
-]
 
-# (nom, capacité, type)
-SALLES = [
-    ("Salle 101", 36, "classique"),
-    ("Salle 102", 36, "classique"),
-    ("Salle 103", 36, "classique"),
-    ("Salle 104", 36, "classique"),
-    ("Laboratoire", 32, "labo"),
-    ("Salle Informatique", 32, "info"),
-    ("Terrain de sport", 60, "sport"),
-]
+def _heures_par_classe() -> int:
+    """Volume hebdomadaire d'une division ; un fouj n'y compte qu'une fois."""
+    vus, total = set(), 0
+    premiere = cem20.classes[0].id
+    for cr in cem20.cours_requis:
+        if cr.classe_id != premiere:
+            continue
+        if cr.couplage_id:
+            if cr.couplage_id in vus:
+                continue
+            vus.add(cr.couplage_id)
+        total += cr.heures_par_semaine
+    return total
 
-CLASSES = [("4AM A", 32), ("4AM B", 32), ("4AM C", 31), ("4AM D", 30)]
 
-# (nom, prénom, matières enseignées, indisponibilités)
-# Les indisponibilités sont des (jour, heure de début) de la grille par
-# défaut : c'est ainsi qu'elles sont stockées.
-JEUDI_APRES_MIDI = [("Jeudi", "13:00"), ("Jeudi", "14:00"), ("Jeudi", "15:05")]
-DIMANCHE_MATIN = [("Dimanche", "08:00"), ("Dimanche", "09:00")]
-
-PROFESSEURS = [
-    ("Benali",   "Karim",   ["Langue Arabe"],                             []),
-    ("Meziane",  "Fatima",  ["Mathématiques"],                            []),
-    ("Kaci",     "Leila",   ["Langue Française"],                         []),
-    ("Rouag",    "Sofiane", ["Langue Anglaise"],            DIMANCHE_MATIN),
-    # Enseignant bivalent : sciences naturelles et physiques.
-    ("Hadj",     "Amina",   ["Sciences Naturelles", "Sciences Physiques"], []),
-    ("Saadi",    "Nadia",   ["Histoire-Géographie", "Éducation Islamique"], []),
-    # Partagé avec un autre établissement le jeudi après-midi.
-    ("Cherif",   "Yasmine", ["Informatique", "Éducation Physique"], JEUDI_APRES_MIDI),
-]
+def resume() -> Dict:
+    """Décrit le jeu sans rien créer."""
+    return {
+        "nom": NOM,
+        "description": DESCRIPTION,
+        "matieres": len(cem20.matieres),
+        "salles": len(cem20.salles),
+        "classes": len(cem20.classes),
+        "professeurs": len(cem20.professeurs),
+        "heures_par_classe": _heures_par_classe(),
+        "lignes_programme": len(cem20.cours_requis),
+        "lecons_a_placer": sum(c.heures_par_semaine for c in cem20.cours_requis),
+        "fenetres_pedagogiques": len(cem20.fenetres_pedagogiques),
+    }
 
 
 def deja_peuplee(db: Session, ecole_id: int) -> bool:
@@ -88,16 +80,13 @@ def effacer(db: Session, ecole_id: int) -> None:
     """
     Vide les ressources de l'établissement.
 
-    L'ordre suit les dépendances : les leçons et les tâches d'abord, puis
-    les classes (qui référencent une salle attitrée), et les salles en
-    dernier. La suppression passe par l'ORM pour que les cascades
-    déclarées sur les relations s'appliquent.
+    L'ordre suit les dépendances : programme, tâches et leçons d'abord,
+    puis les classes — qui référencent une salle attitrée — et les
+    salles en dernier. La suppression passe par l'ORM là où des
+    cascades sont déclarées sur les relations.
     """
-    from ..models.programme import LigneProgramme
-    db.query(LigneProgramme).filter(
-        LigneProgramme.ecole_id == ecole_id).delete()
-    db.query(TacheGeneration).filter(
-        TacheGeneration.ecole_id == ecole_id).delete()
+    for modele in (LigneProgramme, FenetrePedagogique, TacheGeneration):
+        db.query(modele).filter(modele.ecole_id == ecole_id).delete()
     for edt in db.query(EmploiDuTemps).filter(
             EmploiDuTemps.ecole_id == ecole_id).all():
         db.delete(edt)
@@ -110,136 +99,126 @@ def effacer(db: Session, ecole_id: int) -> None:
 
 
 def charger(db: Session, ecole_id: int) -> Dict:
-    """Crée le jeu de démonstration et retourne un récapitulatif."""
-    from ..models.availability import DisponibiliteProfesseur
+    """Installe le jeu complet et retourne un récapitulatif."""
+    # ── Matières, avec le type de salle qu'elles exigent ──────────
+    type_salle_de: Dict[int, str] = {}
+    for niveau in cem20.PROGRAMME.values():
+        for code, ligne in niveau.items():
+            type_salle_de.setdefault(cem20.ID_MATIERE[code],
+                                     ligne["Required_Room_Type"])
 
-    matieres: Dict[str, Matiere] = {}
-    for nom, coefficient, type_salle, _, _ in MATIERES:
-        ligne = Matiere(ecole_id=ecole_id, nom=nom, coefficient=coefficient,
-                        type_salle_requis=type_salle)
-        db.add(ligne)
-        matieres[nom] = ligne
-
-    salles = []
-    for nom, capacite, type_salle in SALLES:
-        ligne = Salle(ecole_id=ecole_id, nom=nom, capacite=capacite,
-                      type=type_salle)
-        db.add(ligne)
-        salles.append(ligne)
-    db.flush()
-
-    # Chaque division reçoit une salle ordinaire attitrée.
-    ordinaires = [s for s in salles if s.type == "classique"]
-    classes = []
-    for rang, (nom, effectif) in enumerate(CLASSES):
-        ligne = Classe(
-            ecole_id=ecole_id, nom=nom, niveau="moyen", effectif=effectif,
-            salle_attitree_id=ordinaires[rang % len(ordinaires)].id,
-            max_heures_par_jour=7,
-        )
-        db.add(ligne)
-        classes.append(ligne)
-
-    professeurs = []
-    for nom, prenom, enseigne, indisponibilites in PROFESSEURS:
-        ligne = Professeur(
-            ecole_id=ecole_id, nom=nom, prenom=prenom,
-            max_heures_consecutives=4, max_heures_par_jour=6,
-            max_heures_par_semaine=22, assure_permanences=True,
-            matieres=[matieres[m] for m in enseigne],
+    id_matiere: Dict[int, int] = {}
+    for matiere in cem20.matieres:
+        type_requis = type_salle_de.get(matiere.id)
+        ligne = Matiere(
+            ecole_id=ecole_id, nom=matiere.nom, coefficient=matiere.coefficient,
+            # Le type ordinaire n'est pas une exigence : les cours qui le
+            # portent restent dans la salle attitrée de la division.
+            type_salle_requis=(None if type_requis == cem20.TYPE_SALLE_ORDINAIRE
+                               else type_requis),
         )
         db.add(ligne)
         db.flush()
-        for jour, heure in indisponibilites:
-            db.add(DisponibiliteProfesseur(
-                professeur_id=ligne.id, jour=jour, heure_debut=heure,
-                disponible=0))
-        professeurs.append(ligne)
+        id_matiere[matiere.id] = ligne.id
 
-    # Le programme annuel est écrit lui aussi : le jeu doit être prêt à
-    # générer, pas seulement à consulter.
-    from ..models.programme import LigneProgramme
-    par_nom = {m.nom: m for m in matieres.values()}
-    titulaire = {}
-    for prof in professeurs:
-        for matiere in prof.matieres:
-            titulaire.setdefault(matiere.nom, prof)
-    for classe in classes:
-        for nom, _, _, heures, doubles in MATIERES:
-            db.add(LigneProgramme(
-                ecole_id=ecole_id, classe_id=classe.id,
-                matiere_id=par_nom[nom].id,
-                professeur_id=titulaire[nom].id,
-                heures_par_semaine=heures, nb_seances_doubles=doubles,
-                max_heures_par_jour=2 if doubles else 1,
-            ))
+    # ── Salles ────────────────────────────────────────────────────
+    id_salle: Dict[int, int] = {}
+    for salle in cem20.salles:
+        ligne = Salle(ecole_id=ecole_id, nom=salle.nom, capacite=salle.capacite,
+                      type=salle.type)
+        db.add(ligne)
+        db.flush()
+        id_salle[salle.id] = ligne.id
 
-    edt = EmploiDuTemps(ecole_id=ecole_id, nom="Semaine type — démonstration",
+    # ── Divisions, chacune dans sa salle attitrée ─────────────────
+    id_classe: Dict[int, int] = {}
+    for classe in cem20.classes:
+        ligne = Classe(
+            ecole_id=ecole_id, nom=classe.nom, niveau=classe.niveau,
+            effectif=classe.effectif,
+            salle_attitree_id=id_salle.get(classe.salle_attitree_id),
+            max_heures_par_jour=classe.max_heures_par_jour,
+        )
+        db.add(ligne)
+        db.flush()
+        id_classe[classe.id] = ligne.id
+
+    # ── Enseignants et leurs indisponibilités ─────────────────────
+    creneaux = {c.id: c for c in cem20.creneaux}
+    id_prof: Dict[int, int] = {}
+    nb_indisponibilites = 0
+    for prof in cem20.professeurs:
+        ligne = Professeur(
+            ecole_id=ecole_id, nom=prof.nom, prenom=prof.prenom,
+            max_heures_consecutives=prof.max_heures_consecutives,
+            max_heures_par_jour=prof.max_heures_par_jour,
+            max_heures_par_semaine=prof.max_heures_par_semaine,
+            assure_permanences=prof.assure_permanences,
+            matieres=[db.get(Matiere, id_matiere[m]) for m in prof.matieres_ids],
+        )
+        db.add(ligne)
+        db.flush()
+        id_prof[prof.id] = ligne.id
+
+        # creneaux_disponibles vide signifie « disponible partout » :
+        # seuls les créneaux réellement retirés donnent une ligne.
+        if prof.creneaux_disponibles:
+            for creneau in cem20.creneaux:
+                if creneau.id not in prof.creneaux_disponibles:
+                    db.add(DisponibiliteProfesseur(
+                        professeur_id=ligne.id, jour=creneau.jour,
+                        heure_debut=creneau.heure_debut, disponible=0))
+                    nb_indisponibilites += 1
+
+    # ── Programme annuel, fouj compris ────────────────────────────
+    for cr in cem20.cours_requis:
+        db.add(LigneProgramme(
+            ecole_id=ecole_id,
+            classe_id=id_classe[cr.classe_id],
+            matiere_id=id_matiere[cr.matiere_id],
+            professeur_id=id_prof[cr.professeur_id],
+            heures_par_semaine=cr.heures_par_semaine,
+            nb_seances_doubles=cr.nb_seances_doubles,
+            max_heures_par_jour=cr.max_heures_par_jour,
+            couplage_id=cr.couplage_id,
+            groupe=cr.groupe,
+        ))
+
+    # ── Journées d'inspection ─────────────────────────────────────
+    for fenetre in cem20.fenetres_pedagogiques:
+        db.add(FenetrePedagogique(
+            ecole_id=ecole_id,
+            matiere_id=id_matiere[fenetre.matiere_id],
+            index_jour=fenetre.index_jour,
+            seances_bloquees=";".join(str(s) for s in sorted(fenetre.seances_bloquees)),
+            libelle=fenetre.libelle,
+        ))
+
+    # ── Réglages : grille, fermetures et pondérations ─────────────
+    reglages = db.query(ParametresEtablissement).filter(
+        ParametresEtablissement.ecole_id == ecole_id).first()
+    if reglages is None:
+        reglages = ParametresEtablissement(ecole_id=ecole_id)
+        db.add(reglages)
+    reglages.grille = {
+        "jours": list(cem20.JOURS),
+        "horaires": [list(h) for h in cem20.HORAIRES],
+        "shifts": [[nom, list(seances)] for nom, seances in cem20.SHIFTS],
+        "fermetures": [[jour, list(seances)] for jour, seances in cem20.FERMETURES],
+    }
+    poids = dict(vars(cem20.ponderations))
+    poids["penalites_seance"] = {
+        str(k): v for k, v in cem20.ponderations.penalites_seance.items()}
+    reglages.ponderations = poids
+    reglages.presence_minimale = dict(cem20.options.presence_minimale)
+    reglages.type_salle_ordinaire = cem20.options.type_salle_ordinaire
+    reglages.limite_secondes = 300
+
+    edt = EmploiDuTemps(ecole_id=ecole_id, nom="Semaine type 2025-2026",
                         annee_scolaire="2025-2026",
                         notes="Créé par le jeu de démonstration.")
     db.add(edt)
     db.commit()
 
-    return {
-        "nom": NOM,
-        "emploi_du_temps_id": edt.id,
-        "matieres": len(matieres),
-        "salles": len(salles),
-        "classes": len(classes),
-        "professeurs": len(professeurs),
-        "indisponibilites": sum(len(p[3]) for p in PROFESSEURS),
-        "heures_par_classe": sum(h for _, _, _, h, _ in MATIERES),
-        "lignes_programme": len(MATIERES) * len(classes),
-        "lecons_a_placer": sum(h for _, _, _, h, _ in MATIERES) * len(classes),
-    }
-
-
-def programme(db: Session, ecole_id: int) -> List[Dict]:
-    """
-    Reconstitue les cours à planifier à partir des ressources en base.
-
-    La recherche se fait par nom : le programme reste donc valable même
-    si l'utilisateur a renommé ou complété quelques éléments, et signale
-    clairement ce qui manque plutôt que de produire un programme muet.
-    """
-    par_nom_matiere = {
-        m.nom: m for m in db.query(Matiere).filter(Matiere.ecole_id == ecole_id)}
-    classes = db.query(Classe).filter(Classe.ecole_id == ecole_id).order_by(
-        Classe.nom).all()
-    enseignants = db.query(Professeur).filter(
-        Professeur.ecole_id == ecole_id).all()
-
-    manquantes = [nom for nom, *_ in MATIERES if nom not in par_nom_matiere]
-    if manquantes or not classes:
-        raise LookupError(
-            "Le jeu de démonstration n'est pas chargé dans cet établissement"
-            + (f" (matières absentes : {', '.join(manquantes)})" if manquantes
-               else " (aucune classe)")
-            + "."
-        )
-
-    # Premier enseignant qualifié pour chaque matière.
-    titulaire: Dict[str, Professeur] = {}
-    for nom in par_nom_matiere:
-        for prof in enseignants:
-            if any(m.nom == nom for m in prof.matieres):
-                titulaire[nom] = prof
-                break
-
-    sans_enseignant = [nom for nom, *_ in MATIERES if nom not in titulaire]
-    if sans_enseignant:
-        raise LookupError(
-            f"Aucun enseignant qualifié pour : {', '.join(sans_enseignant)}.")
-
-    cours = []
-    for classe in classes:
-        for nom, _, _, heures, doubles in MATIERES:
-            cours.append({
-                "classe_id": classe.id,
-                "matiere_id": par_nom_matiere[nom].id,
-                "professeur_id": titulaire[nom].id,
-                "heures_par_semaine": heures,
-                "nb_seances_doubles": doubles,
-                "max_heures_par_jour": 2 if doubles else 1,
-            })
-    return cours
+    return {**resume(), "emploi_du_temps_id": edt.id,
+            "indisponibilites": nb_indisponibilites}
