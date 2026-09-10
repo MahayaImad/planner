@@ -1,7 +1,7 @@
 /**
  * Grille hebdomadaire pour cocher les créneaux d'indisponibilité d'un professeur.
  */
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -13,27 +13,35 @@ import Tooltip from "@mui/material/Tooltip";
 import CircularProgress from "@mui/material/CircularProgress";
 import LoadingButton from "@mui/lab/LoadingButton";
 import { useSnackbar } from "notistack";
-import { professeursApi } from "app/services/api";
-import { JOURS as JOURS_GRILLE, HEURES_DEBUT } from "app/config/grille";
+import { professeursApi, parametresApi } from "app/services/api";
 
-// La grille vient d'un fichier commun : recopiée ici, elle finissait par
-// diverger de celle attendue par le serveur, et les cases cochées sur un
-// horaire inconnu étaient ignorées sans le moindre message.
-const JOURS = JOURS_GRILLE;
-const HEURES = HEURES_DEBUT;
+// La grille est lue dans les réglages de l'établissement. Une liste
+// recopiée ici finirait par en diverger, et une case cochée sur un
+// horaire que le serveur ne connaît pas serait ignorée sans le moindre
+// message : le professeur serait déclaré absent, et placé quand même.
 
 export default function DisponibilitesDialog({ profId, onClose }) {
   const { enqueueSnackbar } = useSnackbar();
   const [indispos, setIndispos] = useState(new Set()); // "Lundi-08:00"
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [grille, setGrille] = useState(null);
 
   useEffect(() => {
-    professeursApi.indisponibilites.lire(profId).then(({ data }) => {
-      setIndispos(new Set(data.map((d) => `${d.jour}-${d.heure_debut}`)));
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    Promise.all([
+      professeursApi.indisponibilites.lire(profId),
+      parametresApi.lire(),
+    ]).then(([d, r]) => {
+      setIndispos(new Set(d.data.map((x) => `${x.jour}-${x.heure_debut}`)));
+      setGrille(r.data.grille);
+    }).finally(() => setLoading(false));
   }, [profId]);
+
+  const JOURS = grille?.jours ?? [];
+  const SEANCES = grille?.horaires ?? [];
+  // Une séance fermée n'est ni travaillée ni « bloquable ».
+  const fermees = new Set(
+    (grille?.fermetures ?? []).flatMap(([j, ss]) => ss.map((s) => `${j}-${s}`)));
 
   const toggle = (jour, heure) => {
     const key = `${jour}-${heure}`;
@@ -48,8 +56,9 @@ export default function DisponibilitesDialog({ profId, onClose }) {
     setSaving(true);
     try {
       const creneaux = [...indispos].map((k) => {
-        const [jour, heure_debut] = k.split("-");
-        return { jour, heure_debut };
+        const separateur = k.indexOf("-");
+        return { jour: k.slice(0, separateur),
+                 heure_debut: k.slice(separateur + 1) };
       });
       await professeursApi.indisponibilites.definir(profId, creneaux);
       enqueueSnackbar("Disponibilités enregistrées", { variant: "success" });
@@ -89,33 +98,40 @@ export default function DisponibilitesDialog({ profId, onClose }) {
                 </Box>
               ))}
 
-              {/* Lignes heures */}
-              {HEURES.map((heure) => (
-                <>
-                  <Box key={`h-${heure}`} display="flex" alignItems="center">
+              {/* Lignes séances */}
+              {SEANCES.map(([heure, fin], indexSeance) => (
+                <Fragment key={`s-${indexSeance}`}>
+                  <Box display="flex" alignItems="center">
                     <Typography variant="caption" color="text.secondary">{heure}</Typography>
                   </Box>
-                  {JOURS.map((jour) => {
+                  {JOURS.map((jour, indexJour) => {
                     const key = `${jour}-${heure}`;
+                    const ferme = fermees.has(`${indexJour}-${indexSeance}`);
                     const indispo = indispos.has(key);
                     return (
-                      <Tooltip key={key} title={indispo ? "Indisponible (cliquer pour libérer)" : "Disponible (cliquer pour bloquer)"}>
+                      <Tooltip key={key} title={ferme ? "Séance fermée dans la grille"
+                        : indispo ? "Indisponible (cliquer pour libérer)"
+                        : "Disponible (cliquer pour bloquer)"}>
                         <Box
-                          onClick={() => toggle(jour, heure)}
+                          onClick={() => !ferme && toggle(jour, heure)}
                           sx={{
                             width: CELL_SIZE, height: CELL_SIZE,
-                            borderRadius: 1, cursor: "pointer",
-                            bgcolor: indispo ? "error.light" : "success.light",
+                            borderRadius: 1,
+                            bgcolor: ferme ? "action.disabledBackground"
+                              : indispo ? "error.light" : "success.light",
                             border: "2px solid",
-                            borderColor: indispo ? "error.main" : "success.main",
+                            borderColor: ferme ? "divider"
+                              : indispo ? "error.main" : "success.main",
+                            opacity: ferme ? 0.45 : 1,
+                            cursor: ferme ? "default" : "pointer",
                             transition: "all 0.15s",
-                            "&:hover": { opacity: 0.75 },
+                            "&:hover": { opacity: ferme ? 0.45 : 0.75 },
                           }}
                         />
                       </Tooltip>
                     );
                   })}
-                </>
+                </Fragment>
               ))}
             </Box>
 

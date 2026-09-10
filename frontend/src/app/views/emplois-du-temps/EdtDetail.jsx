@@ -3,7 +3,7 @@
  *  - Bouton "Générer" → formulaire cours requis → appel solver
  *  - Grille hebdomadaire par classe / par prof / par salle
  */
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
@@ -31,11 +31,10 @@ const ContentBox = styled(Box)(({ theme }) => ({
   [theme.breakpoints.down("sm")]: { margin: "1rem" },
 }));
 
-const JOURS = ["Samedi", "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi"];
-const HEURES = [
-  "08:00", "09:00", "10:00", "11:00",
-  "13:00", "14:00", "15:00", "16:00",
-];
+// Les jours et les séances viennent des réglages de l'établissement.
+// Les recopier ici les faisait diverger : une leçon posée à 10:05 ne
+// trouvait aucune ligne « 10:00 » et disparaissait de l'affichage,
+// sans que rien ne le signale.
 
 // Palette couleurs pour les matières (cyclique)
 const PALETTE = [
@@ -59,6 +58,7 @@ export default function EdtDetail() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [genererOpen, setGenererOpen] = useState(false);
+  const [grille, setGrille] = useState(null);
 
   // Vue active : "classe", "professeur", "salle"
   const [vue, setVue] = useState("classe");
@@ -67,13 +67,15 @@ export default function EdtDetail() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [l, p, m, s, c] = await Promise.all([
+      const [l, p, m, s, c, r] = await Promise.all([
         edtApi.lecons(id),
         professeursApi.liste(),
         matieresApi.liste(),
         sallesApi.liste(),
         classesApi.liste(),
+        parametresApi.lire(),
       ]);
+      setGrille(r.data.grille);
       setLecons(l.data);
       setProfesseurs(p.data);
       setMatieres(m.data);
@@ -95,16 +97,30 @@ export default function EdtDetail() {
     if (val === "salle" && salles.length > 0) setFiltreId(String(salles[0].id));
   };
 
-  // Construire un index (jour, heure) → lecon correspondant au filtre actuel
-  const getLecon = (jour, heure) => {
-    return lecons.find((l) => {
+  /**
+   * Leçons d'une case. Il peut y en avoir DEUX : lors d'un fouj, la
+   * classe est dédoublée et suit deux cours au même créneau. N'en
+   * afficher qu'une masquerait la moitié du programme.
+   */
+  const getLecons = (jour, heure) =>
+    lecons.filter((l) => {
       if (l.heure_debut !== heure || l.jour !== jour) return false;
       if (vue === "classe") return String(l.classe_id) === filtreId;
       if (vue === "professeur") return String(l.professeur_id) === filtreId;
       if (vue === "salle") return String(l.salle_id) === filtreId;
       return false;
-    }) || null;
-  };
+    });
+
+  const JOURS = grille?.jours ?? [];
+  const SEANCES = grille?.horaires ?? [];
+  // Séances fermées : « (index du jour, index de séance) ».
+  const fermees = new Set(
+    (grille?.fermetures ?? []).flatMap(([j, ss]) => ss.map((s) => `${j}-${s}`)));
+
+  // Heures effectivement affichées, pour le compteur sous le tableau.
+  const heuresVisibles = JOURS.reduce(
+    (n, jour) => n + SEANCES.reduce(
+      (m, [debut]) => m + (getLecons(jour, debut).length ? 1 : 0), 0), 0);
 
   // Couleurs par matière
   const matiereColorIndex = {};
@@ -129,6 +145,7 @@ export default function EdtDetail() {
           <Typography variant="h5" fontWeight={600}>Emploi du temps</Typography>
           <Typography variant="body2" color="text.secondary">
             {lecons.length} leçon{lecons.length !== 1 ? "s" : ""} planifiée{lecons.length !== 1 ? "s" : ""}
+            {filtreId && ` · ${heuresVisibles} h pour la sélection`}
           </Typography>
         </Box>
         <Button
@@ -192,69 +209,91 @@ export default function EdtDetail() {
                   </Box>
                 ))}
 
-                {/* Lignes par heure */}
-                {HEURES.map((heure) => (
-                  <>
-                    <Box key={`h-${heure}`} display="flex" alignItems="center" justifyContent="flex-end" pr={1}>
+                {/* Lignes par séance */}
+                {SEANCES.map(([debut, fin], indexSeance) => (
+                  <Fragment key={`s-${indexSeance}`}>
+                    <Box display="flex" alignItems="center" justifyContent="flex-end" pr={1}>
                       <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                        {heure}
+                        {debut}
+                        <Typography component="span" variant="caption"
+                                    color="text.disabled" display="block">
+                          {fin}
+                        </Typography>
                       </Typography>
                     </Box>
-                    {JOURS.map((jour) => {
-                      const l = getLecon(jour, heure);
+                    {JOURS.map((jour, indexJour) => {
+                      const cellules = getLecons(jour, debut);
+                      const ferme = fermees.has(`${indexJour}-${indexSeance}`);
+                      const l = cellules[0] ?? null;
                       const ci = l ? matiereColorIndex[l.matiere_id] ?? 0 : -1;
                       return (
                         <Box
-                          key={`${jour}-${heure}`}
+                          key={`${jour}-${debut}`}
+                          title={ferme ? "Séance fermée" : undefined}
                           sx={{
                             minHeight: 64,
                             borderRadius: 1,
-                            bgcolor: l ? PALETTE[ci] : "action.hover",
+                            bgcolor: l ? PALETTE[ci]
+                              : ferme ? "action.disabledBackground" : "action.hover",
                             border: l ? `2px solid ${BORDER_PALETTE[ci]}` : "1px solid",
                             borderColor: l ? BORDER_PALETTE[ci] : "divider",
                             p: l ? "6px 8px" : 0,
                             display: "flex",
                             flexDirection: "column",
                             justifyContent: "center",
+                            opacity: ferme && !l ? 0.5 : 1,
                           }}
                         >
-                          {l && (
-                            <>
-                              <Typography
-                                variant="caption"
-                                fontWeight={700}
-                                sx={{ color: BORDER_PALETTE[ci], lineHeight: 1.2 }}
-                                noWrap
-                              >
-                                {l.matiere_nom}
-                              </Typography>
-                              {vue !== "professeur" && (
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {l.professeur_nom}
+                          {cellules.map((lecon, rang) => {
+                            const couleur = matiereColorIndex[lecon.matiere_id] ?? 0;
+                            return (
+                              <Box key={lecon.id}
+                                   sx={rang > 0 ? {
+                                     mt: 0.75, pt: 0.75,
+                                     borderTop: "1px dashed",
+                                     borderColor: BORDER_PALETTE[couleur],
+                                   } : undefined}>
+                                <Typography
+                                  variant="caption"
+                                  fontWeight={700}
+                                  sx={{ color: BORDER_PALETTE[couleur], lineHeight: 1.2,
+                                        display: "block" }}
+                                  noWrap
+                                >
+                                  {/* Deux leçons dans la case : demi-groupes d'un fouj. */}
+                                  {cellules.length > 1 && `G${rang + 1} · `}
+                                  {lecon.matiere_nom}
                                 </Typography>
-                              )}
-                              {vue !== "classe" && (
-                                <Typography variant="caption" color="text.secondary" noWrap>
-                                  {l.classe_nom}
-                                </Typography>
-                              )}
-                              {vue !== "salle" && (
-                                <Chip
-                                  label={l.salle_nom}
-                                  size="small"
-                                  sx={{
-                                    height: 16, fontSize: 10, mt: 0.5,
-                                    bgcolor: `${BORDER_PALETTE[ci]}22`,
-                                    color: BORDER_PALETTE[ci],
-                                  }}
-                                />
-                              )}
-                            </>
-                          )}
+                                {vue !== "professeur" && (
+                                  <Typography variant="caption" color="text.secondary"
+                                              display="block" noWrap>
+                                    {lecon.professeur_nom}
+                                  </Typography>
+                                )}
+                                {vue !== "classe" && (
+                                  <Typography variant="caption" color="text.secondary"
+                                              display="block" noWrap>
+                                    {lecon.classe_nom}
+                                  </Typography>
+                                )}
+                                {vue !== "salle" && (
+                                  <Chip
+                                    label={lecon.salle_nom}
+                                    size="small"
+                                    sx={{
+                                      height: 16, fontSize: 10, mt: 0.5,
+                                      bgcolor: `${BORDER_PALETTE[couleur]}22`,
+                                      color: BORDER_PALETTE[couleur],
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            );
+                          })}
                         </Box>
                       );
                     })}
-                  </>
+                  </Fragment>
                 ))}
               </Box>
             </Box>
