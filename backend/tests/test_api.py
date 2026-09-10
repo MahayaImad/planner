@@ -399,6 +399,7 @@ def test_parametres_valeurs_par_defaut_sans_reglage():
     assert len(p["grille"]["horaires"]) == 7
     assert p["grille"]["fermetures"] == []
     assert p["ponderations"]["penalites_seance"]["6"] == 150
+    assert p["ponderations"]["penalites_heures_par_jour"] == {"5": 15, "6": 45}
 
 
 def test_parametres_enregistres_et_relus():
@@ -406,8 +407,12 @@ def test_parametres_enregistres_et_relus():
     grille = client.get("/parametres", headers=entetes).json()["grille"]
     grille["fermetures"] = [[2, [4, 5, 6]]]
 
+    poids = client.get("/parametres", headers=entetes).json()["ponderations"]
+    poids["penalites_heures_par_jour"] = {"4": 5, "5": 20, "6": 60}
+
     r = client.put("/parametres", json={
         "grille": grille,
+        "ponderations": poids,
         "presence_minimale": {"matin": 3},
         "limite_secondes": 45,
     }, headers=entetes)
@@ -417,6 +422,10 @@ def test_parametres_enregistres_et_relus():
     assert relu["grille"]["fermetures"] == [[2, [4, 5, 6]]]
     assert relu["presence_minimale"] == {"matin": 3}
     assert relu["limite_secondes"] == 45
+    # Les seuils sont indexés par des entiers côté solveur et par du texte
+    # en JSON : la relecture doit rendre exactement ce qui a été envoyé.
+    assert relu["ponderations"]["penalites_heures_par_jour"] == {
+        "4": 5, "5": 20, "6": 60}
 
 
 def test_grille_incoherente_est_refusee():
