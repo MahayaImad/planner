@@ -47,7 +47,7 @@ class PonderationsInput(BaseModel):
     # Heures d'une matière groupées au-delà de ce que la politique de
     # blocs du programme autorise, et empilement de plusieurs matières
     # doublées dans la même journée.
-    blocs_hors_politique: int = 25
+    blocs_hors_politique: int = 60
     matieres_repetees_par_jour: int = 12
 
 

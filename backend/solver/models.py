@@ -415,7 +415,7 @@ class Ponderations:
     # groupée au-delà de ce que la politique prévoit — trois heures d'une
     # matière dans la journée, ou deux journées doublées là où le
     # programme n'en prévoit qu'une.
-    blocs_hors_politique: int = 25
+    blocs_hors_politique: int = 60
     # Empilement de matières doublées : plusieurs matières à 2 h ou plus
     # dans la même journée pour une division. Compté au-delà de la
     # première, car une journée porte normalement un seul bloc.
