@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .migrations import verifier as verifier_schema
 from .routers import (
-    auth, teachers, subjects, rooms, classes, schedules, demo, settings as reglages,
-    programme,
+    auth, teachers, subjects, rooms, classes, schedules, demo, donnees,
+    settings as reglages, programme,
 )
 
 # Le schéma est versionné par Alembic : on contrôle qu'il est à jour au
@@ -45,6 +45,7 @@ app.include_router(schedules.router)
 app.include_router(reglages.router)
 app.include_router(programme.router)
 app.include_router(demo.router)
+app.include_router(donnees.router)
 
 
 @app.get("/", tags=["Santé"])

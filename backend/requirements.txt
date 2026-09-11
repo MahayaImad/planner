@@ -13,3 +13,4 @@ pydantic[email]>=2.0.0
 # par les versions antérieures ; elles sont remplacées à la connexion.
 passlib>=1.7.4
 python-multipart>=0.0.9
+openpyxl>=3.1.0

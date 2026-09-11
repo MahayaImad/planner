@@ -248,6 +248,163 @@ def test_statistiques_refusent_un_emploi_du_temps_d_une_autre_ecole():
     assert r.status_code == 404
 
 
+def test_classeur_aller_retour_complet():
+    """
+    Export puis ré-import : le classeur doit se relire lui-même sans
+    rien dupliquer, et sans toucher aux identifiants — les emplois du
+    temps existants y renvoient.
+    """
+    import io as _io
+    from openpyxl import load_workbook
+
+    entetes, matieres, classes, profs, _edt = _etablissement("classeur")
+    avant_classes = client.get("/classes/", headers=entetes).json()
+    avant_profs = client.get("/professeurs/", headers=entetes).json()
+
+    export = client.get("/donnees/export.xlsx", headers=entetes)
+    assert export.status_code == 200, export.text
+    classeur = load_workbook(_io.BytesIO(export.content))
+    assert "Lisez-moi" in classeur.sheetnames
+    for onglet in ("Matieres", "Salles", "Enseignants", "Classes", "Programme"):
+        assert onglet in classeur.sheetnames
+    # Les divisions créées doivent figurer dans l'export.
+    noms = {ligne[0] for ligne in classeur["Classes"].iter_rows(
+        min_row=2, values_only=True) if ligne[0]}
+    assert noms == {c["nom"] for c in avant_classes}
+
+    r = client.post("/donnees/importer",
+                    files={"fichier": ("donnees.xlsx", export.content)},
+                    headers=entetes)
+    assert r.status_code == 200, r.text
+    rapport = r.json()
+    assert rapport["valide"], rapport["erreurs"]
+    assert rapport["applique"]
+    # Tout existait déjà : rien de créé.
+    assert rapport["crees"]["Classes"] == 0
+    assert rapport["crees"]["Enseignants"] == 0
+    assert rapport["modifies"]["Classes"] == len(avant_classes)
+
+    apres_classes = client.get("/classes/", headers=entetes).json()
+    apres_profs = client.get("/professeurs/", headers=entetes).json()
+    assert [c["id"] for c in apres_classes] == [c["id"] for c in avant_classes]
+    assert [p["id"] for p in apres_profs] == [p["id"] for p in avant_profs]
+
+
+def test_classeur_cree_un_etablissement_depuis_le_modele():
+    """Le gabarit vierge, rempli, doit suffire à créer tout un CEM."""
+    import io as _io
+    from openpyxl import load_workbook
+
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "CEM vierge", "email": "vierge@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "vierge-admin@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    modele = client.get("/donnees/modele.xlsx", headers=entetes)
+    assert modele.status_code == 200
+    classeur = load_workbook(_io.BytesIO(modele.content))
+    # Un gabarit est vide : seuls les en-têtes.
+    assert classeur["Classes"].max_row == 1
+
+    classeur["Matieres"].append(["Mathématiques", 4, ""])
+    classeur["Matieres"].append(["Éducation physique", 1, "sport"])
+    classeur["Salles"].append(["S1", 40, "classique"])
+    classeur["Salles"].append(["Stade", 60, "sport"])
+    classeur["Enseignants"].append(
+        ["Benali", "Karim", "k@cem.dz", "", "Mathématiques", 4, 6, 20, "oui"])
+    classeur["Enseignants"].append(
+        ["Hadj", "Amina", "", "", "Éducation physique", 4, 6, 20, "non"])
+    classeur["Classes"].append(["1AM1", "moyen", 32, "S1", 6])
+    classeur["Programme"].append(["1AM1", "Mathématiques", "Benali", 5, 1, 2, "", ""])
+    classeur["Programme"].append(
+        ["1AM1", "Éducation physique", "Hadj", 2, 1, 2, "", ""])
+    tampon = _io.BytesIO()
+    classeur.save(tampon)
+
+    # L'aperçu valide sans rien écrire.
+    apercu = client.post("/donnees/importer?apercu=true",
+                         files={"fichier": ("plein.xlsx", tampon.getvalue())},
+                         headers=entetes)
+    assert apercu.status_code == 200, apercu.text
+    assert apercu.json()["valide"], apercu.json()["erreurs"]
+    assert apercu.json()["applique"] is False
+    assert client.get("/classes/", headers=entetes).json() == []
+
+    r = client.post("/donnees/importer",
+                    files={"fichier": ("plein.xlsx", tampon.getvalue())},
+                    headers=entetes)
+    rapport = r.json()
+    assert rapport["valide"], rapport["erreurs"]
+    assert rapport["crees"] == {"Matieres": 2, "Salles": 2, "Enseignants": 2,
+                                "Classes": 1, "Programme": 2}
+
+    classes = client.get("/classes/", headers=entetes).json()
+    assert [c["nom"] for c in classes] == ["1AM1"]
+    assert classes[0]["salle_attitree_id"] is not None
+    prof = next(p for p in client.get("/professeurs/", headers=entetes).json()
+                if p["nom"] == "Hadj")
+    assert prof["assure_permanences"] is False
+    assert len(client.get("/programme/", headers=entetes).json()) == 2
+
+
+def test_classeur_fautif_n_ecrit_rien():
+    """Une erreur, même en dernière feuille, annule tout l'import."""
+    import io as _io
+    from openpyxl import load_workbook
+
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "CEM fautif", "email": "fautif@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "fautif-admin@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    modele = client.get("/donnees/modele.xlsx", headers=entetes)
+    classeur = load_workbook(_io.BytesIO(modele.content))
+    classeur["Matieres"].append(["Mathématiques", 4, ""])
+    classeur["Salles"].append(["S1", 40, "classique"])
+    classeur["Enseignants"].append(
+        ["Benali", "Karim", "", "", "Mathématiques", 4, 6, 20, "oui"])
+    classeur["Classes"].append(["1AM1", "moyen", 32, "S1", 6])
+    # Le programme désigne une matière qui n'existe nulle part : la
+    # feuille Matières a pourtant été écrite avant, elle doit être
+    # annulée avec le reste.
+    classeur["Programme"].append(["1AM1", "Astronomie", "Benali", 2, 0, 1, "", ""])
+    tampon = _io.BytesIO()
+    classeur.save(tampon)
+
+    r = client.post("/donnees/importer",
+                    files={"fichier": ("fautif.xlsx", tampon.getvalue())},
+                    headers=entetes)
+    rapport = r.json()
+    assert not rapport["valide"]
+    assert any("Astronomie" in e for e in rapport["erreurs"]), rapport["erreurs"]
+    assert client.get("/matieres/", headers=entetes).json() == []
+    assert client.get("/classes/", headers=entetes).json() == []
+
+
+def test_classeur_signale_une_salle_inconnue():
+    import io as _io
+    from openpyxl import load_workbook
+
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "CEM salle", "email": "salle@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "salle-admin@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    classeur = load_workbook(_io.BytesIO(
+        client.get("/donnees/modele.xlsx", headers=entetes).content))
+    classeur["Classes"].append(["1AM1", "moyen", 32, "Salle fantôme", 6])
+    tampon = _io.BytesIO()
+    classeur.save(tampon)
+
+    rapport = client.post("/donnees/importer",
+                          files={"fichier": ("x.xlsx", tampon.getvalue())},
+                          headers=entetes).json()
+    assert not rapport["valide"]
+    assert any("Salle fantôme" in e for e in rapport["erreurs"]), rapport["erreurs"]
+
+
 def test_une_seule_generation_a_la_fois():
     entetes, matieres, classes, profs, edt = _etablissement("concurrent")
     demande = _demande(matieres, classes, profs, limite_secondes=30)
