@@ -44,6 +44,11 @@ class PonderationsInput(BaseModel):
     equilibrage_charge_classes: int = 4
     demi_journees_travaillees_classes: int = 0
     matieres_lourdes_apres_midi: int = 0
+    # Heures d'une matière groupées au-delà de ce que la politique de
+    # blocs du programme autorise, et empilement de plusieurs matières
+    # doublées dans la même journée.
+    blocs_hors_politique: int = 25
+    matieres_repetees_par_jour: int = 12
 
 
 class ParametresRead(BaseModel):

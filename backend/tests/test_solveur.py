@@ -685,6 +685,122 @@ def test_penalite_de_charge_repartit_les_heures_sur_deux_journees():
     assert max(reparti) <= 4, reparti
 
 
+def _classe_a_deux_services():
+    """
+    Une division de 8 h sur deux journées de quatre séances.
+
+    Deux matières à bloc de 2 h (A et B) et deux matières en heures
+    isolées (C et D), chacune portée par DEUX services d'une heure —
+    la configuration réelle d'un cours doublé d'un TD dédoublé. Le
+    plafond journalier D9 ne voit que le service : rien ne l'empêche de
+    poser les deux heures de C le même jour.
+
+    Le professeur de C assure ses deux services : les grouper lui
+    économise une journée de présence, ce qui rend l'empilement
+    attirant tant que le nouveau critère est à zéro.
+    """
+    horaires = [(f"{8 + i:02d}:00", f"{8 + i:02d}:55") for i in range(4)]
+    grille = GrilleHoraire.depuis_configuration(
+        ["Lundi", "Mardi"], horaires, [("journee", list(range(4)))])
+
+    salles = [Salle(1, "S1", 40)]
+    classes = [Classe(1, "C1", effectif=30, salle_attitree_id=1,
+                      max_heures_par_jour=4)]
+    matieres = [Matiere(i, f"M{i}") for i in (1, 2, 3, 4)]
+    professeurs = [
+        Professeur(i, f"P{i}", "Prof", matieres_ids=[i],
+                   max_heures_consecutives=4, max_heures_par_jour=4)
+        for i in (1, 2, 3, 4)
+    ]
+    cours = [
+        # A et B : un bloc de 2 h chacune, une journée doublée permise.
+        CoursRequis(1, 1, 1, 1, heures_par_semaine=2, nb_seances_doubles=1,
+                    max_heures_par_jour=2),
+        CoursRequis(2, 1, 2, 2, heures_par_semaine=2, nb_seances_doubles=1,
+                    max_heures_par_jour=2),
+        # C et D : deux services d'une heure, aucun bloc autorisé.
+        CoursRequis(3, 1, 3, 3, heures_par_semaine=1, max_heures_par_jour=1),
+        CoursRequis(4, 1, 3, 3, heures_par_semaine=1, max_heures_par_jour=1),
+        CoursRequis(5, 1, 4, 4, heures_par_semaine=1, max_heures_par_jour=1),
+        CoursRequis(6, 1, 4, 4, heures_par_semaine=1, max_heures_par_jour=1),
+    ]
+    return grille, salles, classes, matieres, professeurs, cours
+
+
+def _resoudre_deux_services(**poids):
+    grille, salles, classes, matieres, professeurs, cours = \
+        _classe_a_deux_services()
+    reglages = dict(
+        trous_professeurs=0, trous_doubles_professeurs=0,
+        journee_hachee_professeur=0, heure_isolee_professeur=0,
+        recompense_permanence=0, penalites_seance={},
+        penalites_heures_par_jour={}, equite_derniere_seance=0,
+        equilibrage_charge_classes=0, demi_journees_travaillees_classes=0,
+        blocs_hors_politique=0, matieres_repetees_par_jour=0,
+        # Grouper les heures de C et de D économise une journée de
+        # présence : sans le nouveau critère, l'empilement l'emporte.
+        jours_presence_professeurs=20)
+    reglages.update(poids)
+    resultat = SolveurEmploiDuTemps(
+        grille=grille, salles=salles, matieres=matieres,
+        professeurs=professeurs, classes=classes, cours_requis=cours,
+        options=Options(limite_secondes=20),
+        ponderations=Ponderations(**reglages)).resoudre()
+    assert resultat.reussi, resultat.statut
+    return evaluer(resultat.lecons, grille, salles, matieres, professeurs,
+                   classes, cours)
+
+
+def test_heures_groupees_au_dela_de_la_politique_sont_penalisees():
+    """
+    C et D n'ont droit à aucun bloc : leurs deux heures doivent tomber
+    sur des journées différentes. Le plafond journalier ne peut pas
+    l'imposer, puisqu'il raisonne service par service.
+    """
+    sans = _resoudre_deux_services()
+    assert sans.blocs_hors_politique == 2, sans.blocs_hors_politique
+
+    avec = _resoudre_deux_services(blocs_hors_politique=30)
+    assert avec.blocs_hors_politique == 0, avec.blocs_hors_politique
+
+
+def test_empilement_de_matieres_doublees_est_penalise():
+    """
+    Une journée porte normalement un seul bloc de 2 h. Sans le critère,
+    la division récolte deux matières doublées le même jour.
+    """
+    sans = _resoudre_deux_services()
+    assert sans.empilements_de_matieres == 2, sans.empilements_de_matieres
+
+    avec = _resoudre_deux_services(matieres_repetees_par_jour=30)
+    assert avec.empilements_de_matieres == 0, avec.empilements_de_matieres
+    assert avec.matieres_doublees_par_jour == {1: 2}, \
+        avec.matieres_doublees_par_jour
+
+
+def test_politique_de_blocs_se_decline():
+    """
+    Le programme dit comment répartir les heures entre les journées.
+    La forme « ONE_2H_BLOCK_REST_1H » se décline, et les fichiers
+    d'établissement en écrivent des variantes.
+    """
+    from donnees.cem20 import blocs_de_la_politique as blocs
+
+    assert blocs("") == 0
+    assert blocs("NONE") == 0
+    assert blocs("SINGLE_HOURS") == 0
+    assert blocs("ONE_2H_BLOCK_REST_1H") == 1
+    assert blocs("TWO_2H_HOURS_BLOCK_REST_1H") == 2
+    assert blocs("THREE_2H_BLOCKS_REST_1H") == 3
+    assert blocs("2_2H_BLOCK_REST_1H") == 2
+    try:
+        blocs("DEUX_BLOCS")
+    except ValueError as erreur:
+        assert "politique de blocs inconnue" in str(erreur)
+    else:
+        raise AssertionError("une politique illisible doit être refusée")
+
+
 def test_probleme_infaisable_retourne_un_diagnostic_lisible():
     grille = GrilleHoraire.construire(jours=["Dimanche", "Lundi"],
                                       seances_matin=[("08:00", "09:00")],

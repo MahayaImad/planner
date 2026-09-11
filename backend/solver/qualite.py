@@ -49,6 +49,15 @@ class Metriques:
     jours_presence_professeurs: Dict[str, int] = field(default_factory=dict)
     # Nombre de journées-professeur par volume horaire : {5: 12, 6: 3}.
     charges_quotidiennes_professeurs: Dict[int, int] = field(default_factory=dict)
+    # Nombre de journées-division par nombre de matières vues 2 h ou
+    # plus dans la journée : {0: 18, 1: 35, 2: 37, 3: 10}.
+    matieres_doublees_par_jour: Dict[int, int] = field(default_factory=dict)
+    # Matières doublées au-delà de la première, cumulées sur la semaine.
+    empilements_de_matieres: int = 0
+    # Heures groupées au-delà de ce que la politique de blocs autorise.
+    blocs_hors_politique: int = 0
+    # Matières vues 3 h ou plus dans une même journée.
+    matieres_a_trois_heures: int = 0
     seances_doubles: int = 0
     heures_lourdes_apres_midi: int = 0
 
@@ -83,6 +92,14 @@ class Metriques:
             f"–{max(self.jours_presence_professeurs.values()) if self.jours_presence_professeurs else 0}",
             f"Charge quotidienne des professeurs    : "
             f"{self.charges_quotidiennes_professeurs}",
+            f"Matières doublées par journée-division: "
+            f"{self.matieres_doublees_par_jour}",
+            f"Empilements de matières doublées      : "
+            f"{self.empilements_de_matieres}",
+            f"Heures groupées hors politique        : "
+            f"{self.blocs_hors_politique}",
+            f"Matières à 3 h dans la journée        : "
+            f"{self.matieres_a_trois_heures}",
             f"Séances doubles constituées           : {self.seances_doubles // 2}",
             f"Séances 7 par classe (équité)         : "
             f"{self.seances_tardives_min}–{self.seances_tardives_max}",
@@ -128,6 +145,9 @@ def evaluer(
     salles_fouj = defaultdict(set)
     charge_jour = defaultdict(set)
     cours_jour = defaultdict(list)          # (cours_requis, jour) → [index]
+    # (classe, matière, jour) → {créneaux} : le fouj occupe la division
+    # une seule fois, on dédoublonne donc par créneau.
+    matiere_jour = defaultdict(set)
     jours_prof = defaultdict(set)
     seances_tardives = defaultdict(int)
 
@@ -143,6 +163,9 @@ def evaluer(
             creneau.index_demi_journee)
         occ_prof_jour[(lecon.professeur_id, creneau.jour)].add(
             creneau.index_dans_jour)
+
+        matiere_jour[(lecon.classe_id, lecon.matiere_id, creneau.jour)].add(
+            creneau.id)
 
         if cr and cr.couplage_id:
             salles_fouj[lecon.classe_id].add(lecon.salle_id)
@@ -244,6 +267,42 @@ def evaluer(
 
     charges = Counter(len(positions) for positions in occ_prof_jour.values())
     m.charges_quotidiennes_professeurs = dict(sorted(charges.items()))
+
+    # Répétition des matières : la politique de blocs du programme, lue
+    # dans nb_seances_doubles, dit combien de journées doublées une
+    # matière peut légitimement occuper dans la semaine.
+    blocs_permis = defaultdict(int)
+    porteurs = {}
+    for cr in cours_requis:
+        if cr.couplage_id:
+            garde = porteurs.setdefault(cr.couplage_id, cr)
+            if (cr.groupe or "", cr.id) < (garde.groupe or "", garde.id):
+                porteurs[cr.couplage_id] = cr
+    porteurs_ids = {cr.id for cr in porteurs.values()}
+    for cr in cours_requis:
+        if cr.couplage_id and cr.id not in porteurs_ids:
+            continue
+        blocs_permis[(cr.classe_id, cr.matiere_id)] += cr.nb_seances_doubles
+
+    doublees_par_jour = defaultdict(int)
+    surplus_semaine = defaultdict(int)
+    jours_de_classe = set()
+    for (classe_id, matiere_id, jour), creneaux in matiere_jour.items():
+        jours_de_classe.add((classe_id, jour))
+        heures = len(creneaux)
+        if heures >= 2:
+            doublees_par_jour[(classe_id, jour)] += 1
+            surplus_semaine[(classe_id, matiere_id)] += heures - 1
+        if heures >= 3:
+            m.matieres_a_trois_heures += 1
+
+    repartition = Counter(doublees_par_jour.get(cle, 0) for cle in jours_de_classe)
+    m.matieres_doublees_par_jour = dict(sorted(repartition.items()))
+    m.empilements_de_matieres = sum(max(0, n - 1)
+                                    for n in doublees_par_jour.values())
+    m.blocs_hors_politique = sum(
+        max(0, surplus - blocs_permis[cle])
+        for cle, surplus in surplus_semaine.items())
 
     m.jours_presence_professeurs = {
         idx_profs[pid].nom_complet: len(v) for pid, v in jours_prof.items()

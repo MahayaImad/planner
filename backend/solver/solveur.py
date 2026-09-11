@@ -706,6 +706,67 @@ class SolveurEmploiDuTemps:
                 for travaillee in demi_journees:
                     termes.append(p.demi_journees_travaillees_classes * travaillee)
 
+        # ── S13 — répétition des matières dans la journée ─────────
+        # Le plafond journalier D9 s'applique à un service ; or une même
+        # matière en porte souvent deux — le cours et le TD dédoublé —
+        # et rien n'empêchait les deux de tomber le même jour. On
+        # raisonne donc par matière, en prenant pour référence la
+        # politique de blocs du programme : chaque bloc de 2 h autorise
+        # une journée doublée, les autres heures vont sur des journées
+        # distinctes.
+        if p.blocs_hors_politique or p.matieres_repetees_par_jour:
+            # Heures d'une matière pour une division, journée par
+            # journée. Les deux demi-groupes d'un fouj occupent le même
+            # créneau : seul le cours porteur est compté.
+            heures_matiere_jour: Dict[Tuple[int, int, str], List] = defaultdict(list)
+            blocs_autorises: Dict[Tuple[int, int], int] = defaultdict(int)
+            for cr in self.cours_requis:
+                porteur = (self._porteur_couplage.get(cr.couplage_id)
+                           if cr.couplage_id else cr.id)
+                if porteur != cr.id:
+                    continue
+                blocs_autorises[(cr.classe_id, cr.matiere_id)] += cr.nb_seances_doubles
+                for jour in self.grille.jours:
+                    variables = y_cours_jour.get((cr.id, jour))
+                    if variables:
+                        heures_matiere_jour[
+                            (cr.classe_id, cr.matiere_id, jour)].extend(variables)
+
+            surplus_semaine: Dict[Tuple[int, int], List] = defaultdict(list)
+            doublees_par_jour: Dict[Tuple[int, str], List] = defaultdict(list)
+            for (classe_id, matiere_id, jour), variables in heures_matiere_jour.items():
+                if len(variables) < 2:
+                    continue          # une seule heure possible ce jour-là
+                heures = sum(variables)
+                if p.blocs_hors_politique:
+                    # Heures groupées : tout ce qui dépasse la première.
+                    surplus = modele.NewIntVar(
+                        0, len(variables),
+                        f"group_cl{classe_id}_m{matiere_id}_{jour}")
+                    modele.Add(surplus >= heures - 1)
+                    surplus_semaine[(classe_id, matiere_id)].append(surplus)
+                if p.matieres_repetees_par_jour:
+                    doublee = modele.NewBoolVar(
+                        f"doublee_cl{classe_id}_m{matiere_id}_{jour}")
+                    modele.Add(heures >= 2).OnlyEnforceIf(doublee)
+                    modele.Add(heures <= 1).OnlyEnforceIf(doublee.Not())
+                    doublees_par_jour[(classe_id, jour)].append(doublee)
+
+            for cle, surplus_jours in surplus_semaine.items():
+                autorise = blocs_autorises[cle]
+                exces = modele.NewIntVar(0, len(surplus_jours) * 10,
+                                         f"hors_politique_cl{cle[0]}_m{cle[1]}")
+                modele.Add(exces >= sum(surplus_jours) - autorise)
+                termes.append(p.blocs_hors_politique * exces)
+
+            for (classe_id, jour), doublees in doublees_par_jour.items():
+                if len(doublees) < 2:
+                    continue
+                en_trop = modele.NewIntVar(
+                    0, len(doublees), f"empil_cl{classe_id}_{jour}")
+                modele.Add(en_trop >= sum(doublees) - 1)
+                termes.append(p.matieres_repetees_par_jour * en_trop)
+
         if termes:
             modele.Minimize(sum(termes))
 

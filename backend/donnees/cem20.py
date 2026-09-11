@@ -15,6 +15,7 @@ seule partie fictive du jeu de données.
 import csv
 import io
 import os
+import re
 from collections import defaultdict
 from typing import Dict, List
 
@@ -216,6 +217,32 @@ PROGRAMME: Dict[str, Dict[str, dict]] = {}
 for ligne in csv.DictReader(io.StringIO(CURRICULUM_CSV)):
     PROGRAMME.setdefault(ligne["Level"], {})[ligne["Subject_Code"]] = ligne
 
+
+# La politique de blocs dit comment répartir le volume d'une matière
+# entre les journées : « ONE_2H_BLOCK_REST_1H » impose une journée à
+# deux heures, le reste en heures isolées. Elle se décline (TWO, THREE…)
+# et les fichiers d'établissement en écrivent des variantes.
+NOMBRES_EN_LETTRES = {"ONE": 1, "TWO": 2, "THREE": 3, "FOUR": 4, "FIVE": 5,
+                      "SIX": 6}
+_FORME_BLOC = re.compile(r"(\w+?)_2H(?:_HOURS)?_BLOCKS?_REST_1H")
+
+
+def blocs_de_la_politique(politique: str) -> int:
+    """Nombre de blocs de 2 h imposés par une politique du programme."""
+    forme = (politique or "").strip().upper()
+    if forme in ("", "NONE", "SINGLE_HOURS"):
+        return 0
+    trouve = _FORME_BLOC.fullmatch(forme)
+    if trouve:
+        tete = trouve.group(1)
+        if tete in NOMBRES_EN_LETTRES:
+            return NOMBRES_EN_LETTRES[tete]
+        if tete.isdigit():
+            return int(tete)
+    raise ValueError(
+        f"politique de blocs inconnue : {politique!r}. Formes acceptées : "
+        f"NONE, SINGLE_HOURS, ONE_2H_BLOCK_REST_1H et ses déclinaisons.")
+
 # ══════════════════════════════════════════════════════════════════
 #  FENÊTRES PÉDAGOGIQUES — journées d'inspection
 # ══════════════════════════════════════════════════════════════════
@@ -403,8 +430,11 @@ for classe in classes:
     for code, ligne in programme.items():
         heures = int(ligne["Hrs_Cours"])
         if heures:
-            bloc = ligne["Cours_Block_Policy"]
-            doubles = 1 if bloc == "ONE_2H_BLOCK_REST_1H" else 0
+            doubles = blocs_de_la_politique(ligne["Cours_Block_Policy"])
+            if doubles * 2 > heures:
+                raise ValueError(
+                    f"{classe.niveau}/{code} : {doubles} blocs de 2 h "
+                    f"demandés pour {heures} h de cours.")
             services.append((classe, code, heures, doubles, 2 if doubles else 1,
                              ligne["Required_Room_Type"], None, ""))
 

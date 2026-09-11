@@ -57,6 +57,15 @@ const CRITERES = [
     aide: "Regroupe les cours sur moins de demi-journées." },
   { cle: "matieres_lourdes_apres_midi", label: "Matière lourde l'après-midi",
     aide: "Pousse les matières à fort coefficient vers le matin." },
+  { cle: "blocs_hors_politique", label: "Bloc hors politique du programme",
+    aide: "Le programme dit comment répartir une matière entre les "
+        + "journées : un bloc de 2 h autorise une seule journée doublée, "
+        + "le reste va sur des journées distinctes. Facture chaque heure "
+        + "groupée au-delà — trois heures d'une matière dans la journée, "
+        + "ou une deuxième journée doublée." },
+  { cle: "matieres_repetees_par_jour", label: "Matières doublées empilées",
+    aide: "Plusieurs matières à 2 h ou plus dans la même journée pour "
+        + "une division. Comptées au-delà de la première." },
 ];
 
 export default function ParametresPage() {

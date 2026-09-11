@@ -31,6 +31,8 @@ PONDERATIONS_DEFAUT = {
     "equilibrage_charge_classes": 4,
     "demi_journees_travaillees_classes": 0,
     "matieres_lourdes_apres_midi": 0,
+    "blocs_hors_politique": 25,
+    "matieres_repetees_par_jour": 12,
 }
 
 
