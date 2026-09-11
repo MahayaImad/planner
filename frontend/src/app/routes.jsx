@@ -15,6 +15,7 @@ const Salles          = Loadable(lazy(() => import("app/views/salles/SallesList"
 const Classes         = Loadable(lazy(() => import("app/views/classes/ClassesList")));
 const EdtList         = Loadable(lazy(() => import("app/views/emplois-du-temps/EdtList")));
 const EdtDetail       = Loadable(lazy(() => import("app/views/emplois-du-temps/EdtDetail")));
+const EdtStats        = Loadable(lazy(() => import("app/views/emplois-du-temps/EdtStatistiques")));
 
 const routes = [
   { path: "/", element: <Navigate to="/dashboard" /> },
@@ -34,6 +35,7 @@ const routes = [
       { path: "/classes",           element: <Classes /> },
       { path: "/emplois-du-temps",  element: <EdtList /> },
       { path: "/emplois-du-temps/:id", element: <EdtDetail /> },
+      { path: "/emplois-du-temps/:id/statistiques", element: <EdtStats /> },
     ],
   },
   ...sessionRoutes,

@@ -160,6 +160,13 @@ export default function EdtDetail() {
           </Typography>
         </Box>
         <Button
+          variant="outlined"
+          startIcon={<Icon>insights</Icon>}
+          onClick={() => navigate(`/emplois-du-temps/${id}/statistiques`)}
+        >
+          Statistiques
+        </Button>
+        <Button
           variant="contained"
           color="secondary"
           startIcon={<Icon>auto_fix_high</Icon>}

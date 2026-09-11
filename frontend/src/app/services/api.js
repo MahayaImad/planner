@@ -131,6 +131,11 @@ export const edtApi = {
   supprimer: (id) => api.delete(`/emplois-du-temps/${id}`),
   lecons: (id) => api.get(`/emplois-du-temps/${id}/lecons`),
 
+  // Statistiques recalculées à la lecture : un emploi du temps retouché
+  // à la main affiche ce qu'il est devenu, pas ce que le solveur avait
+  // produit.
+  statistiques: (id) => api.get(`/emplois-du-temps/${id}/statistiques`),
+
   // Contrôle des données avant calcul : le responsable corrige ses
   // saisies sans attendre la fin d'une résolution vouée à l'échec.
   diagnostic: (id, data) => api.post(`/emplois-du-temps/${id}/diagnostic`, data),

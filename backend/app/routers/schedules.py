@@ -10,7 +10,7 @@ from typing import List
 
 from ..config import settings
 from ..models.task import TacheGeneration
-from ..services import generation
+from ..services import generation, statistiques
 
 from ..database import get_db
 from ..deps import get_utilisateur_courant
@@ -105,6 +105,24 @@ def lister_lecons(
             salle_nom=l.salle.nom if l.salle else None,
         ))
     return lecons
+
+
+@router.get("/{edt_id}/statistiques")
+def lire_statistiques(
+    edt_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """
+    Indicateurs de l'emploi du temps enregistré : service et trous de
+    chaque professeur, charge des divisions, taux d'occupation.
+
+    Recalculés à la lecture plutôt que lus dans la tâche de génération :
+    un emploi du temps retouché à la main doit afficher ce qu'il est
+    devenu, pas ce que le solveur avait produit.
+    """
+    edt = _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
+    return statistiques.calculer(db, utilisateur.ecole_id, edt)
 
 
 # ── Contrôle des données, sans résolution ──────────────────────

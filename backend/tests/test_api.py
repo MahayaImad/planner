@@ -194,6 +194,60 @@ def test_generation_asynchrone_complete():
     assert len(lecons) == attendu
 
 
+def test_statistiques_decrivent_l_emploi_du_temps_enregistre():
+    """
+    Les statistiques se recalculent depuis les leçons en base : elles
+    doivent retrouver le total d'heures du programme et concorder avec
+    les indicateurs que la génération a rapportés.
+    """
+    entetes, matieres, classes, profs, edt = _etablissement("stats")
+    demande = _demande(matieres, classes, profs)
+    tache_id = client.post(f"/emplois-du-temps/{edt}/generer", json=demande,
+                           headers=entetes).json()["id"]
+    tache = _attendre(entetes, edt, tache_id)
+    assert tache["statut"] == "terminee", tache["message"]
+
+    r = client.get(f"/emplois-du-temps/{edt}/statistiques", headers=entetes)
+    assert r.status_code == 200, r.text
+    stats = r.json()
+
+    attendu = sum(h for _, _, h, _ in PROGRAMME) * len(classes)
+    assert stats["totaux"]["lecons"] == attendu
+    assert stats["totaux"]["lecons_hors_grille"] == 0
+    assert stats["totaux"]["classes"] == len(classes)
+
+    # Chaque division suit tout son programme, sans trou.
+    assert len(stats["classes"]) == len(classes)
+    for division in stats["classes"]:
+        assert division["heures"] == sum(h for _, _, h, _ in PROGRAMME)
+    assert stats["resume"]["trous_classes"] == tache["resultat"]["qualite"][
+        "trous_classes"]
+    assert stats["resume"]["trous_professeurs"] == tache["resultat"]["qualite"][
+        "trous_professeurs"]
+
+    # Le service de chaque professeur, et la somme qui doit retomber sur
+    # le volume total.
+    assert sum(p["heures"] for p in stats["professeurs"]) == attendu
+    for enseignant in stats["professeurs"]:
+        assert enseignant["heures"] > 0
+        assert enseignant["jours_presence"] >= 1
+        # Les clés d'un objet JSON sont des chaînes : la charge « 4 h »
+        # revient indexée par « "4" ».
+        assert sum(int(v) * n for v, n in enseignant["charges"].items()) == \
+            enseignant["heures"]
+
+    # Taux d'occupation : jamais plus de divisions occupées que possible.
+    for seance in stats["occupation_seances"]:
+        assert 0 <= seance["occupe"] <= seance["possible"]
+
+
+def test_statistiques_refusent_un_emploi_du_temps_d_une_autre_ecole():
+    entetes_a, *_, edt_a = _etablissement("stats-a")
+    entetes_b, *_ = _etablissement("stats-b")
+    r = client.get(f"/emplois-du-temps/{edt_a}/statistiques", headers=entetes_b)
+    assert r.status_code == 404
+
+
 def test_une_seule_generation_a_la_fois():
     entetes, matieres, classes, profs, edt = _etablissement("concurrent")
     demande = _demande(matieres, classes, profs, limite_secondes=30)
