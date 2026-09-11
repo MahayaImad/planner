@@ -715,26 +715,40 @@ class SolveurEmploiDuTemps:
         # une journée doublée, les autres heures vont sur des journées
         # distinctes.
         if p.blocs_hors_politique or p.matieres_repetees_par_jour:
-            # Heures d'une matière pour une division, journée par
-            # journée. Les deux demi-groupes d'un fouj occupent le même
-            # créneau : seul le cours porteur est compté.
-            heures_matiere_jour: Dict[Tuple[int, int, str], List] = defaultdict(list)
-            blocs_autorises: Dict[Tuple[int, int], int] = defaultdict(int)
+            # Chaque demi-groupe suit son propre emploi du temps :
+            # pendant un fouj, G1 fait de la physique pendant que G2
+            # fait des sciences naturelles. Compter les deux matières
+            # comme doublées pour la division ferait payer deux fois une
+            # seule heure de classe, et une matière vue par un seul
+            # demi-groupe disparaîtrait si l'on ne gardait que le cours
+            # porteur. On mesure donc les deux vues séparément ; un
+            # service hors fouj appartient aux deux.
+            heures_vue: Dict[Tuple[int, int, str, int], List] = defaultdict(list)
+            blocs_vue: Dict[Tuple[int, int, int], int] = defaultdict(int)
+            # Une division sans aucun fouj n'a qu'un seul emploi du
+            # temps : lui donner deux vues compterait chaque journée en
+            # double.
+            avec_fouj = {cr.classe_id for cr in self.cours_requis
+                         if cr.couplage_id}
             for cr in self.cours_requis:
-                porteur = (self._porteur_couplage.get(cr.couplage_id)
-                           if cr.couplage_id else cr.id)
-                if porteur != cr.id:
-                    continue
-                blocs_autorises[(cr.classe_id, cr.matiere_id)] += cr.nb_seances_doubles
-                for jour in self.grille.jours:
-                    variables = y_cours_jour.get((cr.id, jour))
-                    if variables:
-                        heures_matiere_jour[
-                            (cr.classe_id, cr.matiere_id, jour)].extend(variables)
+                if cr.couplage_id:
+                    porteur = self._porteur_couplage[cr.couplage_id]
+                    vues = (1,) if porteur == cr.id else (2,)
+                else:
+                    vues = (1, 2) if cr.classe_id in avec_fouj else (1,)
+                for vue in vues:
+                    blocs_vue[(cr.classe_id, cr.matiere_id, vue)] += \
+                        cr.nb_seances_doubles
+                    for jour in self.grille.jours:
+                        variables = y_cours_jour.get((cr.id, jour))
+                        if variables:
+                            heures_vue[(cr.classe_id, cr.matiere_id, jour,
+                                        vue)].extend(variables)
 
-            surplus_semaine: Dict[Tuple[int, int], List] = defaultdict(list)
-            doublees_par_jour: Dict[Tuple[int, str], List] = defaultdict(list)
-            for (classe_id, matiere_id, jour), variables in heures_matiere_jour.items():
+            surplus_semaine: Dict[Tuple[int, int, int], List] = defaultdict(list)
+            doublees_par_jour: Dict[Tuple[int, str, int], List] = defaultdict(list)
+            for cle, variables in heures_vue.items():
+                classe_id, matiere_id, jour, vue = cle
                 if len(variables) < 2:
                     continue          # une seule heure possible ce jour-là
                 heures = sum(variables)
@@ -742,28 +756,28 @@ class SolveurEmploiDuTemps:
                     # Heures groupées : tout ce qui dépasse la première.
                     surplus = modele.NewIntVar(
                         0, len(variables),
-                        f"group_cl{classe_id}_m{matiere_id}_{jour}")
+                        f"group_cl{classe_id}_m{matiere_id}_{jour}_v{vue}")
                     modele.Add(surplus >= heures - 1)
-                    surplus_semaine[(classe_id, matiere_id)].append(surplus)
+                    surplus_semaine[(classe_id, matiere_id, vue)].append(surplus)
                 if p.matieres_repetees_par_jour:
                     doublee = modele.NewBoolVar(
-                        f"doublee_cl{classe_id}_m{matiere_id}_{jour}")
+                        f"doublee_cl{classe_id}_m{matiere_id}_{jour}_v{vue}")
                     modele.Add(heures >= 2).OnlyEnforceIf(doublee)
                     modele.Add(heures <= 1).OnlyEnforceIf(doublee.Not())
-                    doublees_par_jour[(classe_id, jour)].append(doublee)
+                    doublees_par_jour[(classe_id, jour, vue)].append(doublee)
 
             for cle, surplus_jours in surplus_semaine.items():
-                autorise = blocs_autorises[cle]
-                exces = modele.NewIntVar(0, len(surplus_jours) * 10,
-                                         f"hors_politique_cl{cle[0]}_m{cle[1]}")
-                modele.Add(exces >= sum(surplus_jours) - autorise)
+                exces = modele.NewIntVar(
+                    0, len(self.grille.creneaux),
+                    f"hors_politique_cl{cle[0]}_m{cle[1]}_v{cle[2]}")
+                modele.Add(exces >= sum(surplus_jours) - blocs_vue[cle])
                 termes.append(p.blocs_hors_politique * exces)
 
-            for (classe_id, jour), doublees in doublees_par_jour.items():
+            for cle, doublees in doublees_par_jour.items():
                 if len(doublees) < 2:
                     continue
                 en_trop = modele.NewIntVar(
-                    0, len(doublees), f"empil_cl{classe_id}_{jour}")
+                    0, len(doublees), f"empil_cl{cle[0]}_{cle[1]}_v{cle[2]}")
                 modele.Add(en_trop >= sum(doublees) - 1)
                 termes.append(p.matieres_repetees_par_jour * en_trop)
 

@@ -49,8 +49,8 @@ class Metriques:
     jours_presence_professeurs: Dict[str, int] = field(default_factory=dict)
     # Nombre de journées-professeur par volume horaire : {5: 12, 6: 3}.
     charges_quotidiennes_professeurs: Dict[int, int] = field(default_factory=dict)
-    # Nombre de journées-division par nombre de matières vues 2 h ou
-    # plus dans la journée : {0: 18, 1: 35, 2: 37, 3: 10}.
+    # Nombre de journées vues par un demi-groupe, réparties selon le
+    # nombre de matières qu'il y suit 2 h ou plus : {0: 18, 1: 35, 2: 37}.
     matieres_doublees_par_jour: Dict[int, int] = field(default_factory=dict)
     # Matières doublées au-delà de la première, cumulées sur la semaine.
     empilements_de_matieres: int = 0
@@ -111,6 +111,23 @@ class Metriques:
         return "\n".join("  " + l for l in lignes)
 
 
+def _vues(cr, porteurs_fouj, vues_classe) -> tuple:
+    """
+    Demi-groupes concernés par un service.
+
+    Hors fouj, la division entière suit le cours : toutes ses vues.
+    Pendant un fouj, seul un demi-groupe suit chaque matière — le cours
+    porteur est rattaché au premier, son partenaire au second. Une
+    division sans aucun fouj n'a qu'une vue, sinon chacune de ses
+    journées serait comptée deux fois.
+    """
+    if cr is None:
+        return (1,)
+    if not cr.couplage_id:
+        return vues_classe.get(cr.classe_id, (1,))
+    return (1,) if porteurs_fouj.get(cr.couplage_id) == cr.id else (2,)
+
+
 def evaluer(
     lecons: Sequence[LeconPlanifiee],
     grille: GrilleHoraire,
@@ -127,6 +144,20 @@ def evaluer(
     idx_profs = {p.id: p for p in professeurs}
     idx_classes = {c.id: c for c in classes}
     idx_cours = {cr.id: cr for cr in cours_requis}
+
+    # Cours porteur de chaque fouj : celui qui garde la salle attitrée,
+    # et que l'on rattache par convention au premier demi-groupe.
+    porteurs_fouj = {}
+    for cr in cours_requis:
+        if cr.couplage_id:
+            garde = porteurs_fouj.setdefault(cr.couplage_id, cr)
+            if (cr.groupe or "", cr.id) < (garde.groupe or "", garde.id):
+                porteurs_fouj[cr.couplage_id] = cr
+    porteurs_fouj = {cle: cr.id for cle, cr in porteurs_fouj.items()}
+    # Une division sans fouj n'a qu'un seul emploi du temps.
+    avec_fouj = {cr.classe_id for cr in cours_requis if cr.couplage_id}
+    vues_classe = {c.id: ((1, 2) if c.id in avec_fouj else (1,))
+                   for c in classes}
 
     m = Metriques(
         lecons_placees=len(lecons),
@@ -145,8 +176,10 @@ def evaluer(
     salles_fouj = defaultdict(set)
     charge_jour = defaultdict(set)
     cours_jour = defaultdict(list)          # (cours_requis, jour) → [index]
-    # (classe, matière, jour) → {créneaux} : le fouj occupe la division
-    # une seule fois, on dédoublonne donc par créneau.
+    # (classe, matière, jour, vue) → {créneaux}. « Vue » désigne le
+    # demi-groupe : pendant un fouj, G1 fait de la physique et G2 des
+    # sciences naturelles. Les deux matières ne sont doublées pour
+    # personne en même temps, et chacune doit rester visible.
     matiere_jour = defaultdict(set)
     jours_prof = defaultdict(set)
     seances_tardives = defaultdict(int)
@@ -164,8 +197,9 @@ def evaluer(
         occ_prof_jour[(lecon.professeur_id, creneau.jour)].add(
             creneau.index_dans_jour)
 
-        matiere_jour[(lecon.classe_id, lecon.matiere_id, creneau.jour)].add(
-            creneau.id)
+        for vue in _vues(cr, porteurs_fouj, vues_classe):
+            matiere_jour[(lecon.classe_id, lecon.matiere_id, creneau.jour,
+                          vue)].add(creneau.id)
 
         if cr and cr.couplage_id:
             salles_fouj[lecon.classe_id].add(lecon.salle_id)
@@ -272,27 +306,20 @@ def evaluer(
     # dans nb_seances_doubles, dit combien de journées doublées une
     # matière peut légitimement occuper dans la semaine.
     blocs_permis = defaultdict(int)
-    porteurs = {}
     for cr in cours_requis:
-        if cr.couplage_id:
-            garde = porteurs.setdefault(cr.couplage_id, cr)
-            if (cr.groupe or "", cr.id) < (garde.groupe or "", garde.id):
-                porteurs[cr.couplage_id] = cr
-    porteurs_ids = {cr.id for cr in porteurs.values()}
-    for cr in cours_requis:
-        if cr.couplage_id and cr.id not in porteurs_ids:
-            continue
-        blocs_permis[(cr.classe_id, cr.matiere_id)] += cr.nb_seances_doubles
+        for vue in _vues(cr, porteurs_fouj, vues_classe):
+            blocs_permis[(cr.classe_id, cr.matiere_id, vue)] += \
+                cr.nb_seances_doubles
 
     doublees_par_jour = defaultdict(int)
     surplus_semaine = defaultdict(int)
     jours_de_classe = set()
-    for (classe_id, matiere_id, jour), creneaux in matiere_jour.items():
-        jours_de_classe.add((classe_id, jour))
+    for (classe_id, matiere_id, jour, vue), creneaux in matiere_jour.items():
+        jours_de_classe.add((classe_id, jour, vue))
         heures = len(creneaux)
         if heures >= 2:
-            doublees_par_jour[(classe_id, jour)] += 1
-            surplus_semaine[(classe_id, matiere_id)] += heures - 1
+            doublees_par_jour[(classe_id, jour, vue)] += 1
+            surplus_semaine[(classe_id, matiere_id, vue)] += heures - 1
         if heures >= 3:
             m.matieres_a_trois_heures += 1
 

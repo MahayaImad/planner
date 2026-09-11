@@ -778,6 +778,59 @@ def test_empilement_de_matieres_doublees_est_penalise():
         avec.matieres_doublees_par_jour
 
 
+def test_fouj_ne_compte_pas_pour_deux_matieres_doublees():
+    """
+    Pendant un fouj, G1 fait de la physique et G2 des sciences
+    naturelles sur le même créneau. Aucun élève ne suit les deux : la
+    division ne porte pas là deux matières doublées, elle en porte une
+    par demi-groupe.
+    """
+    horaires = [(f"{8 + i:02d}:00", f"{8 + i:02d}:55") for i in range(4)]
+    grille = GrilleHoraire.depuis_configuration(
+        ["Lundi"], horaires, [("journee", list(range(4)))])
+    par_seance = {c.index_seance: c.id for c in grille.creneaux}
+
+    salles = [Salle(1, "S1", 40), Salle(2, "Labo", 40)]
+    classes = [Classe(1, "C1", effectif=30, salle_attitree_id=1)]
+    matieres = [Matiere(1, "Physique"), Matiere(2, "Sciences"),
+                Matiere(3, "Maths")]
+    professeurs = [Professeur(i, f"P{i}", "Prof", matieres_ids=[i])
+                   for i in (1, 2, 3)]
+    cours = [
+        CoursRequis(1, 1, 1, 1, heures_par_semaine=2, nb_seances_doubles=1,
+                    max_heures_par_jour=2, couplage_id="F1", groupe="G1"),
+        CoursRequis(2, 1, 2, 2, heures_par_semaine=2, nb_seances_doubles=1,
+                    max_heures_par_jour=2, couplage_id="F1", groupe="G2"),
+        CoursRequis(3, 1, 3, 3, heures_par_semaine=2, nb_seances_doubles=1,
+                    max_heures_par_jour=2),
+    ]
+
+    def lecon(cours_id, matiere_id, prof_id, salle_id, seance):
+        return LeconPlanifiee(
+            cours_requis_id=cours_id, classe_id=1, matiere_id=matiere_id,
+            professeur_id=prof_id, salle_id=salle_id,
+            creneau_id=par_seance[seance])
+
+    # Le fouj occupe les deux premières séances, les maths les deux
+    # suivantes.
+    lecons = [lecon(1, 1, 1, 1, s) for s in (0, 1)]
+    lecons += [lecon(2, 2, 2, 2, s) for s in (0, 1)]
+    lecons += [lecon(3, 3, 3, 1, s) for s in (2, 3)]
+
+    metriques = evaluer(lecons, grille, salles, matieres, professeurs,
+                        classes, cours)
+    # Chaque demi-groupe voit deux matières doublées : la sienne pendant
+    # le fouj, et les maths. Un empilement par demi-groupe, pas quatre
+    # matières entassées sur la division.
+    assert metriques.matieres_doublees_par_jour == {2: 2}, \
+        metriques.matieres_doublees_par_jour
+    assert metriques.empilements_de_matieres == 2
+    # Un bloc est prévu pour chacune des trois matières : rien hors
+    # politique, et aucune matière à trois heures.
+    assert metriques.blocs_hors_politique == 0
+    assert metriques.matieres_a_trois_heures == 0
+
+
 def test_politique_de_blocs_se_decline():
     """
     Le programme dit comment répartir les heures entre les journées.
