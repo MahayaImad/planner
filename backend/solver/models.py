@@ -415,6 +415,19 @@ class Ponderations:
     # groupée au-delà de ce que la politique prévoit — trois heures d'une
     # matière dans la journée, ou deux journées doublées là où le
     # programme n'en prévoit qu'une.
+    #
+    # Calibré sur le CEM à 20 divisions. Le solveur rend FEASIBLE, pas
+    # OPTIMAL : un seul tirage ne départage rien, d'où trois budgets de
+    # calcul. Heures groupées hors politique relevées :
+    #
+    #             300 s   600 s   900 s
+    #     poids 25   23      19      19
+    #     poids 60   15      15      20
+    #
+    # 60 l'emporte sur deux budgets sur trois et en moyenne (17 contre
+    # 20) ; sur les trous, les heures creuses et les journées lourdes,
+    # les deux réglages sont à égalité, les écarts restant dans le bruit
+    # de recherche. La marge est donc réelle mais étroite.
     blocs_hors_politique: int = 60
     # Empilement de matières doublées : plusieurs matières à 2 h ou plus
     # dans la même journée pour une division. Compté au-delà de la
