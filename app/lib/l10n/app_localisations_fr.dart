@@ -485,4 +485,63 @@ class LFr extends L {
 
   @override
   String get enseignant => 'Enseignant';
+
+  @override
+  String get parDivision => 'Par division';
+
+  @override
+  String get parEnseignant => 'Par enseignant';
+
+  @override
+  String get parSalle => 'Par salle';
+
+  @override
+  String get aucunEmploiDuTemps => 'Aucun emploi du temps';
+
+  @override
+  String get aideAucunEmploiDuTemps =>
+      'Créez-en un, puis lancez une génération.';
+
+  @override
+  String get aucuneLecon => 'Cet emploi du temps est vide';
+
+  @override
+  String get aideAucuneLecon =>
+      'Lancez une génération pour obtenir une proposition.';
+
+  @override
+  String get motifSeanceFermee => 'Séance fermée dans la grille horaire';
+
+  @override
+  String get motifProfesseurOccupe =>
+      'L\'enseignant a déjà cours à cette heure';
+
+  @override
+  String get motifProfesseurIndisponible =>
+      'L\'enseignant est indisponible à cette heure';
+
+  @override
+  String get motifDivisionOccupee => 'La division a déjà cours à cette heure';
+
+  @override
+  String get motifAucuneSalle => 'Aucune salle du bon type n\'est libre';
+
+  @override
+  String get motifFenetre => 'Cette matière est interdite sur cette plage';
+
+  @override
+  String get motifPlafondProfesseur =>
+      'L\'enseignant atteindrait son plafond du jour';
+
+  @override
+  String get motifPlafondDivision =>
+      'La division atteindrait son plafond du jour';
+
+  @override
+  String get motifPlafondMatiere =>
+      'Cette matière atteindrait son plafond du jour';
+
+  @override
+  String get motifConsecutives =>
+      'L\'enseignant dépasserait ses heures consécutives';
 }

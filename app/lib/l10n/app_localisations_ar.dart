@@ -507,4 +507,55 @@ class LAr extends L {
 
   @override
   String get enseignant => 'الأستاذ';
+
+  @override
+  String get parDivision => 'حسب الفوج';
+
+  @override
+  String get parEnseignant => 'حسب الأستاذ';
+
+  @override
+  String get parSalle => 'حسب القاعة';
+
+  @override
+  String get aucunEmploiDuTemps => 'لا يوجد جدول توقيت';
+
+  @override
+  String get aideAucunEmploiDuTemps => 'أنشئ واحدًا ثم ابدأ التوليد.';
+
+  @override
+  String get aucuneLecon => 'هذا الجدول فارغ';
+
+  @override
+  String get aideAucuneLecon => 'ابدأ التوليد للحصول على اقتراح.';
+
+  @override
+  String get motifSeanceFermee => 'الحصة مغلقة في الشبكة الزمنية';
+
+  @override
+  String get motifProfesseurOccupe => 'الأستاذ لديه حصة في هذا الوقت';
+
+  @override
+  String get motifProfesseurIndisponible => 'الأستاذ غير متاح في هذا الوقت';
+
+  @override
+  String get motifDivisionOccupee => 'الفوج لديه حصة في هذا الوقت';
+
+  @override
+  String get motifAucuneSalle => 'لا توجد قاعة مناسبة شاغرة';
+
+  @override
+  String get motifFenetre => 'هذه المادة ممنوعة في هذه الفترة';
+
+  @override
+  String get motifPlafondProfesseur => 'سيبلغ الأستاذ حدّه اليومي';
+
+  @override
+  String get motifPlafondDivision => 'سيبلغ الفوج حدّه اليومي';
+
+  @override
+  String get motifPlafondMatiere => 'ستبلغ هذه المادة حدّها اليومي';
+
+  @override
+  String get motifConsecutives => 'سيتجاوز الأستاذ ساعاته المتتالية';
 }

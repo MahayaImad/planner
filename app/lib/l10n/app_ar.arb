@@ -231,5 +231,22 @@
         "type": "int"
       }
     }
-  }
+  },
+  "parDivision": "حسب الفوج",
+  "parEnseignant": "حسب الأستاذ",
+  "parSalle": "حسب القاعة",
+  "aucunEmploiDuTemps": "لا يوجد جدول توقيت",
+  "aideAucunEmploiDuTemps": "أنشئ واحدًا ثم ابدأ التوليد.",
+  "aucuneLecon": "هذا الجدول فارغ",
+  "aideAucuneLecon": "ابدأ التوليد للحصول على اقتراح.",
+  "motifSeanceFermee": "الحصة مغلقة في الشبكة الزمنية",
+  "motifProfesseurOccupe": "الأستاذ لديه حصة في هذا الوقت",
+  "motifProfesseurIndisponible": "الأستاذ غير متاح في هذا الوقت",
+  "motifDivisionOccupee": "الفوج لديه حصة في هذا الوقت",
+  "motifAucuneSalle": "لا توجد قاعة مناسبة شاغرة",
+  "motifFenetre": "هذه المادة ممنوعة في هذه الفترة",
+  "motifPlafondProfesseur": "سيبلغ الأستاذ حدّه اليومي",
+  "motifPlafondDivision": "سيبلغ الفوج حدّه اليومي",
+  "motifPlafondMatiere": "ستبلغ هذه المادة حدّها اليومي",
+  "motifConsecutives": "سيتجاوز الأستاذ ساعاته المتتالية"
 }

@@ -231,5 +231,22 @@
         "type": "int"
       }
     }
-  }
+  },
+  "parDivision": "Par division",
+  "parEnseignant": "Par enseignant",
+  "parSalle": "Par salle",
+  "aucunEmploiDuTemps": "Aucun emploi du temps",
+  "aideAucunEmploiDuTemps": "Créez-en un, puis lancez une génération.",
+  "aucuneLecon": "Cet emploi du temps est vide",
+  "aideAucuneLecon": "Lancez une génération pour obtenir une proposition.",
+  "motifSeanceFermee": "Séance fermée dans la grille horaire",
+  "motifProfesseurOccupe": "L'enseignant a déjà cours à cette heure",
+  "motifProfesseurIndisponible": "L'enseignant est indisponible à cette heure",
+  "motifDivisionOccupee": "La division a déjà cours à cette heure",
+  "motifAucuneSalle": "Aucune salle du bon type n'est libre",
+  "motifFenetre": "Cette matière est interdite sur cette plage",
+  "motifPlafondProfesseur": "L'enseignant atteindrait son plafond du jour",
+  "motifPlafondDivision": "La division atteindrait son plafond du jour",
+  "motifPlafondMatiere": "Cette matière atteindrait son plafond du jour",
+  "motifConsecutives": "L'enseignant dépasserait ses heures consécutives"
 }

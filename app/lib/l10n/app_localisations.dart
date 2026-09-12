@@ -822,6 +822,108 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Enseignant'**
   String get enseignant;
+
+  /// No description provided for @parDivision.
+  ///
+  /// In fr, this message translates to:
+  /// **'Par division'**
+  String get parDivision;
+
+  /// No description provided for @parEnseignant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Par enseignant'**
+  String get parEnseignant;
+
+  /// No description provided for @parSalle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Par salle'**
+  String get parSalle;
+
+  /// No description provided for @aucunEmploiDuTemps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun emploi du temps'**
+  String get aucunEmploiDuTemps;
+
+  /// No description provided for @aideAucunEmploiDuTemps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créez-en un, puis lancez une génération.'**
+  String get aideAucunEmploiDuTemps;
+
+  /// No description provided for @aucuneLecon.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet emploi du temps est vide'**
+  String get aucuneLecon;
+
+  /// No description provided for @aideAucuneLecon.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lancez une génération pour obtenir une proposition.'**
+  String get aideAucuneLecon;
+
+  /// No description provided for @motifSeanceFermee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Séance fermée dans la grille horaire'**
+  String get motifSeanceFermee;
+
+  /// No description provided for @motifProfesseurOccupe.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'enseignant a déjà cours à cette heure'**
+  String get motifProfesseurOccupe;
+
+  /// No description provided for @motifProfesseurIndisponible.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'enseignant est indisponible à cette heure'**
+  String get motifProfesseurIndisponible;
+
+  /// No description provided for @motifDivisionOccupee.
+  ///
+  /// In fr, this message translates to:
+  /// **'La division a déjà cours à cette heure'**
+  String get motifDivisionOccupee;
+
+  /// No description provided for @motifAucuneSalle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune salle du bon type n\'est libre'**
+  String get motifAucuneSalle;
+
+  /// No description provided for @motifFenetre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette matière est interdite sur cette plage'**
+  String get motifFenetre;
+
+  /// No description provided for @motifPlafondProfesseur.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'enseignant atteindrait son plafond du jour'**
+  String get motifPlafondProfesseur;
+
+  /// No description provided for @motifPlafondDivision.
+  ///
+  /// In fr, this message translates to:
+  /// **'La division atteindrait son plafond du jour'**
+  String get motifPlafondDivision;
+
+  /// No description provided for @motifPlafondMatiere.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette matière atteindrait son plafond du jour'**
+  String get motifPlafondMatiere;
+
+  /// No description provided for @motifConsecutives.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'enseignant dépasserait ses heures consécutives'**
+  String get motifConsecutives;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

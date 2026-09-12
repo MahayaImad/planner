@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../pages/a_venir.dart';
 import '../pages/connexion.dart';
 import '../pages/donnees.dart';
+import '../pages/emploi_du_temps.dart';
 import '../pages/saisies.dart';
 import '../pages/tableau_de_bord.dart';
 import '../widgets/coquille.dart';
@@ -78,12 +79,14 @@ final routeurProvider = Provider<GoRouter>((ref) {
             path: '/programme',
             builder: (contexte, etat) => const PageProgramme(),
           ),
+          GoRoute(
+            path: '/emplois-du-temps',
+            builder: (contexte, etat) => const PageEmploiDuTemps(),
+          ),
           // Les écrans encore à écrire annoncent honnêtement leur état
           // plutôt que d'afficher une page blanche.
-          for (final destination in destinations.where((d) => const [
-                '/emplois-du-temps',
-                '/reglages',
-              ].contains(d.chemin)))
+          for (final destination
+              in destinations.where((d) => d.chemin == '/reglages'))
             GoRoute(
               path: destination.chemin,
               builder: (contexte, etat) =>
