@@ -21,6 +21,7 @@ conséquences en cascade sous les yeux.
 
 import io
 import unicodedata
+from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
 from openpyxl import Workbook, load_workbook
@@ -32,6 +33,7 @@ from sqlalchemy.orm import Session
 from ..models.class_ import Classe
 from ..models.programme import LigneProgramme
 from ..models.room import Salle
+from ..models.settings import ParametresEtablissement
 from ..models.subject import Matiere
 from ..models.teacher import Professeur
 from . import programme as service_programme
@@ -104,6 +106,18 @@ FEUILLES: List[Dict] = [
             ("Salle attitrée", "salle_attitree", False,
              "Nom d'une salle. Vide = aucune salle attitrée."),
             ("Heures par jour max", "max_heures_par_jour", False, "6 par défaut."),
+        ],
+    },
+    {
+        "nom": "Reglages",
+        "titre": "Réglages",
+        "aide": "Le type de salle que suivent les cours sans exigence "
+                "particulière. Il DOIT correspondre au type des salles "
+                "ordinaires de la feuille Salles, sans quoi aucune "
+                "génération ne peut aboutir.",
+        "colonnes": [
+            ("Type de salle ordinaire", "type_salle_ordinaire", True,
+             "Exemple : classroom, ou classique. Doit exister dans Salles."),
         ],
     },
     {
@@ -259,6 +273,10 @@ def construire(db: Session, ecole_id: int, avec_donnees: bool) -> bytes:
             for c in db.query(Classe).filter(
                 Classe.ecole_id == ecole_id).order_by(Classe.nom)
         ]
+        reglages = db.query(ParametresEtablissement).filter(
+            ParametresEtablissement.ecole_id == ecole_id).first()
+        contenu["Reglages"] = [[
+            reglages.type_salle_ordinaire if reglages else "classique"]]
         contenu["Programme"] = [
             [l.classe.nom if l.classe else "",
              l.matiere.nom if l.matiere else "",
@@ -532,6 +550,31 @@ def analyser(db: Session, ecole_id: int, contenu: bytes) -> Tuple[Dict, Dict]:
             "max_heures_par_jour": par_jour,
         })
 
+    # ── Réglages ─────────────────────────────────────────────────
+    # Le type ordinaire doit exister dans le parc de salles. Sans ce
+    # contrôle, l'incohérence ne se révélait qu'à la génération, par un
+    # « 90 heures pour une capacité de 0 h » que rien ne rattachait au
+    # fichier téléversé.
+    lignes_reglages = par_feuille["Reglages"]
+    ordinaire = (lignes_reglages[0].get("type_salle_ordinaire")
+                 if lignes_reglages else "")
+    types_salles = {s["type"] for s in prepare["Salles"]} | {
+        s.type for s in salles.values()}
+    if ordinaire:
+        if _normaliser(ordinaire) not in {_normaliser(t) for t in types_salles}:
+            rapport.erreurs.append(
+                f"Reglages : le type de salle ordinaire « {ordinaire} » ne "
+                f"correspond à aucune salle. Types présents : "
+                + ", ".join(sorted(types_salles)) + ".")
+        prepare["_type_salle_ordinaire"] = ordinaire
+    elif types_salles:
+        # Feuille absente ou vide — un classeur d'une version
+        # antérieure. Le type le plus répandu fait foi, et le rapport
+        # le dit plutôt que de laisser une incohérence silencieuse.
+        compte = Counter(s["type"] for s in prepare["Salles"])
+        if compte:
+            prepare["_type_salle_ordinaire"] = compte.most_common(1)[0][0]
+
     prepare["Programme"] = par_feuille["Programme"]
 
     # Ce qui existe en base sans figurer au fichier : signalé, jamais
@@ -659,6 +702,15 @@ def importer(db: Session, ecole_id: int, contenu: bytes,
             existante.salle_attitree_id = (
                 salles[donnees["salle_attitree"]].id
                 if donnees["salle_attitree"] else None)
+
+        ordinaire = prepare.get("_type_salle_ordinaire")
+        if ordinaire:
+            reglages = db.query(ParametresEtablissement).filter(
+                ParametresEtablissement.ecole_id == ecole_id).first()
+            if reglages is None:
+                reglages = ParametresEtablissement(ecole_id=ecole_id)
+                db.add(reglages)
+            reglages.type_salle_ordinaire = ordinaire
 
         # Les identifiants doivent exister avant que le programme ne les
         # désigne : l'analyse du programme relit la base.

@@ -608,6 +608,85 @@ def test_classeur_cree_un_etablissement_depuis_le_modele():
     assert len(client.get("/programme/", headers=entetes).json()) == 2
 
 
+def test_classeur_transporte_le_type_de_salle_ordinaire():
+    """
+    Un établissement créé depuis le seul classeur doit pouvoir générer.
+
+    Le type de salle ordinaire est un réglage, pas une donnée de salle :
+    il ne figurait nulle part dans le fichier. Un parc en « classroom »
+    importé dans un établissement réglé sur « classique » laissait donc
+    les cours sans exigence chercher une salle qui n'existait pas, et
+    la génération échouait sur « capacité de 0 h » — à un moment où
+    plus rien ne renvoyait au fichier téléversé.
+    """
+    import io as _io
+    from openpyxl import load_workbook
+
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "CEM types", "email": "types@test.dz"},
+        "admin": {"nom": "A", "prenom": "B", "email": "types-admin@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert client.get("/parametres", headers=entetes).json()[
+        "type_salle_ordinaire"] == "classique"
+
+    classeur = load_workbook(_io.BytesIO(
+        client.get("/donnees/modele.xlsx", headers=entetes).content))
+    assert "Reglages" in classeur.sheetnames
+    classeur["Reglages"].append(["classroom"])
+    classeur["Matieres"].append(["Mathématiques", 4, ""])
+    classeur["Salles"].append(["S1", 40, "classroom"])
+    classeur["Enseignants"].append(
+        ["Benali", "Karim", "", "", "Mathématiques", 4, 6, 20, "oui"])
+    classeur["Classes"].append(["1AM1", "moyen", 32, "S1", 6])
+    classeur["Programme"].append(["1AM1", "Mathématiques", "Benali", 4, 1, 2, "", ""])
+    tampon = _io.BytesIO()
+    classeur.save(tampon)
+
+    rapport = client.post("/donnees/importer",
+                          files={"fichier": ("t.xlsx", tampon.getvalue())},
+                          headers=entetes).json()
+    assert rapport["valide"], rapport["erreurs"]
+    assert client.get("/parametres", headers=entetes).json()[
+        "type_salle_ordinaire"] == "classroom"
+
+    # Et la génération aboutit, ce qui est tout l'intérêt.
+    edt = client.post("/emplois-du-temps/",
+                      json={"nom": "Semaine", "annee_scolaire": "2025-2026"},
+                      headers=entetes).json()["id"]
+    tache = _attendre(entetes, edt, client.post(
+        f"/emplois-du-temps/{edt}/generer", json={"limite_secondes": 20},
+        headers=entetes).json()["id"])
+    assert tache["statut"] == "terminee", tache["message"]
+    assert tache["resultat"]["lecons_planifiees"] == 4
+
+
+def test_classeur_refuse_un_type_ordinaire_sans_salle():
+    """L'incohérence doit être dite au téléversement, pas à la génération."""
+    import io as _io
+    from openpyxl import load_workbook
+
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "CEM type absent", "email": "typeabsent@test.dz"},
+        "admin": {"nom": "A", "prenom": "B",
+                  "email": "typeabsent-admin@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    classeur = load_workbook(_io.BytesIO(
+        client.get("/donnees/modele.xlsx", headers=entetes).content))
+    classeur["Reglages"].append(["salle_fantome"])
+    classeur["Salles"].append(["S1", 40, "classroom"])
+    tampon = _io.BytesIO()
+    classeur.save(tampon)
+
+    rapport = client.post("/donnees/importer",
+                          files={"fichier": ("t.xlsx", tampon.getvalue())},
+                          headers=entetes).json()
+    assert not rapport["valide"]
+    assert any("salle_fantome" in e and "classroom" in e
+               for e in rapport["erreurs"]), rapport["erreurs"]
+
+
 def test_classeur_fautif_n_ecrit_rien():
     """Une erreur, même en dernière feuille, annule tout l'import."""
     import io as _io
