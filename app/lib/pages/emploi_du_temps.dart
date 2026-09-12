@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../core/api.dart';
 import '../core/emploi_du_temps.dart';
@@ -7,6 +8,7 @@ import '../core/session.dart';
 import '../core/theme.dart';
 import '../l10n/traductions.dart';
 import '../widgets/etats.dart';
+import 'generation.dart';
 
 /// Angle de lecture de la grille.
 enum Vue { division, enseignant, salle }
@@ -94,6 +96,15 @@ class _PageEmploiDuTempsState extends ConsumerState<PageEmploiDuTemps> {
         _ => code,
       };
 
+  Future<void> _genererProposition() async {
+    final relancer = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => DialogueGeneration(edtId: _edtId!),
+    );
+    if (relancer == true && mounted) ref.invalidate(edtProvider(_edtId!));
+  }
+
   @override
   Widget build(BuildContext contexte) {
     final l = contexte.l10n;
@@ -136,9 +147,23 @@ class _PageEmploiDuTempsState extends ConsumerState<PageEmploiDuTemps> {
         title: Text(l.emploisDuTemps),
         actions: [
           IconButton(
+            tooltip: l.statistiques,
+            onPressed: () =>
+                contexte.go('/emplois-du-temps/$_edtId/statistiques'),
+            icon: const Icon(Icons.insights_outlined),
+          ),
+          IconButton(
             tooltip: l.reessayer,
             onPressed: () => ref.invalidate(edtProvider(_edtId!)),
             icon: const Icon(Icons.refresh),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Jetons.s),
+            child: FilledButton.icon(
+              onPressed: _enCours ? null : _genererProposition,
+              icon: const Icon(Icons.auto_fix_high),
+              label: Text(l.generer),
+            ),
           ),
         ],
         bottom: _enCours

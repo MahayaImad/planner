@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../pages/a_venir.dart';
 import '../pages/connexion.dart';
 import '../pages/donnees.dart';
 import '../pages/emploi_du_temps.dart';
 import '../pages/saisies.dart';
+import '../pages/reglages.dart';
+import '../pages/statistiques.dart';
 import '../pages/tableau_de_bord.dart';
 import '../widgets/coquille.dart';
-import 'navigation.dart';
 import 'session.dart';
 
 /// Rend `go_router` sensible aux changements de session sans l'abonner
@@ -83,15 +83,15 @@ final routeurProvider = Provider<GoRouter>((ref) {
             path: '/emplois-du-temps',
             builder: (contexte, etat) => const PageEmploiDuTemps(),
           ),
-          // Les écrans encore à écrire annoncent honnêtement leur état
-          // plutôt que d'afficher une page blanche.
-          for (final destination
-              in destinations.where((d) => d.chemin == '/reglages'))
-            GoRoute(
-              path: destination.chemin,
-              builder: (contexte, etat) =>
-                  PageAVenir(destination: destination),
-            ),
+          GoRoute(
+            path: '/emplois-du-temps/:id/statistiques',
+            builder: (contexte, etat) => PageStatistiques(
+                edtId: int.parse(etat.pathParameters['id']!)),
+          ),
+          GoRoute(
+            path: '/reglages',
+            builder: (contexte, etat) => const PageReglages(),
+          ),
         ],
       ),
     ],

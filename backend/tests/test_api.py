@@ -330,6 +330,61 @@ def test_deplacement_emporte_le_partenaire_de_fouj():
     assert apres[paire[0]["id"]]["salle_id"] != apres[paire[1]["id"]]["salle_id"]
 
 
+def test_deplacement_ne_cree_jamais_de_trou_pour_les_eleves():
+    """
+    La règle la plus stricte de la génération : une division ne doit
+    jamais avoir d'heure creuse. Une retouche manuelle ne peut pas la
+    contourner — ni en arrivant, ni en laissant la journée de départ
+    trouée.
+    """
+    entetes, edt, lecons = _edt_genere("trou-eleves")
+    grille = client.get("/parametres", headers=entetes).json()["grille"]
+    debuts = [h[0] for h in grille["horaires"]]
+
+    # Une leçon prise au milieu d'une demi-journée : la retirer de là
+    # trouerait la journée de départ.
+    par_jour = {}
+    for autre in lecons:
+        par_jour.setdefault((autre["classe_id"], autre["jour"]), []).append(autre)
+    milieu = None
+    for groupe in par_jour.values():
+        rangs = sorted(debuts.index(a["heure_debut"]) for a in groupe)
+        matin = [r for r in rangs if r <= 3]
+        if len(matin) >= 3 and matin == list(range(matin[0], matin[0] + len(matin))):
+            cherche = matin[len(matin) // 2]
+            milieu = next(a for a in groupe
+                          if debuts.index(a["heure_debut"]) == cherche)
+            break
+    assert milieu is not None, "il faut une demi-journée pleine de 3 h"
+
+    creneaux = client.get(
+        f"/emplois-du-temps/{edt}/lecons/{milieu['id']}/creneaux",
+        headers=entetes).json()["creneaux"]
+    # Déplacer cette heure ailleurs laisserait un trou derrière elle :
+    # tous les autres jours doivent donc être refusés pour ce motif.
+    autres_jours = [c for c in creneaux
+                    if c["jour"] != milieu["jour"] and c["possible"]]
+    assert not autres_jours, (
+        "un déplacement qui troue la journée de départ doit être refusé : "
+        f"{autres_jours[:2]}")
+
+    # Et la vérification finale : aucune division n'a de trou après
+    # tous les déplacements acceptés.
+    for creneau in creneaux:
+        if creneau["possible"] and not creneau["actuel"]:
+            r = client.patch(
+                f"/emplois-du-temps/{edt}/lecons/{milieu['id']}",
+                json={"jour": creneau["jour"],
+                      "heure_debut": creneau["heure_debut"]},
+                headers=entetes)
+            assert r.status_code == 200, r.text
+            break
+
+    stats = client.get(f"/emplois-du-temps/{edt}/statistiques",
+                       headers=entetes).json()
+    assert stats["resume"]["trous_classes"] == 0, stats["resume"]
+
+
 def test_deplacement_refuse_une_lecon_d_une_autre_ecole():
     entetes_a, edt_a, lecons_a = _edt_genere("deplace-a")
     entetes_b, *_ = _etablissement("deplace-b")

@@ -49,6 +49,7 @@ TROP_HEURES_PROFESSEUR = "plafond_journalier_professeur"
 TROP_HEURES_DIVISION = "plafond_journalier_division"
 TROP_CONSECUTIVES = "trop_heures_consecutives"
 MATIERE_SATUREE = "plafond_journalier_matiere"
+TROU_ELEVES = "trou_pour_les_eleves"
 
 
 class _Contexte:
@@ -63,6 +64,18 @@ class _Contexte:
         self.fermees = {(j, s) for j, seances in reglages.grille.fermetures
                         for s in seances}
         self.index_jour = {nom: i for i, nom in enumerate(self.jours)}
+        # Demi-journée de chaque séance, et séances ouvertes de chaque
+        # demi-journée : un trou d'élèves se juge à l'intérieur d'une
+        # demi-journée, la pause déjeuner n'en étant pas un.
+        self.demi_de_seance = {s: nom
+                               for nom, seances in reglages.grille.shifts
+                               for s in seances}
+        self.ouvertes_demi = {
+            (jour, nom): [s for s in seances
+                          if (index, s) not in self.fermees]
+            for index, jour in enumerate(self.jours)
+            for nom, seances in reglages.grille.shifts
+        }
 
         self.lecons: List[Lecon] = list(edt.lecons)
         self.salles = {s.id: s for s in db.query(Salle).filter(
@@ -243,6 +256,41 @@ def _refus(
                         and autre.matiere_id == lecon.matiere_id})
             if deja + 1 > plafond:
                 return MATIERE_SATUREE, {}
+
+    # Aucun trou pour les élèves : c'est la règle la plus stricte de la
+    # génération, une retouche manuelle ne doit pas la contourner.
+    seances_division = {
+        contexte.index_seance[autre.heure_debut] for autre in du_jour
+        if autre.classe_id == reference.classe_id
+        and autre.heure_debut in contexte.index_seance
+    } | {seance}
+    demi = contexte.demi_de_seance.get(seance)
+    if demi is not None:
+        ouvertes = contexte.ouvertes_demi.get((jour, demi), [])
+        rangs = sorted(i for i, s in enumerate(ouvertes)
+                       if s in seances_division)
+        if len(rangs) >= 2 and rangs[-1] - rangs[0] + 1 != len(rangs):
+            return TROU_ELEVES, {}
+
+    # La journée de départ ne doit pas non plus se retrouver trouée.
+    if jour != reference.jour:
+        restantes = {
+            contexte.index_seance[autre.heure_debut]
+            for autre in contexte.lecons
+            if autre.classe_id == reference.classe_id
+            and autre.jour == reference.jour
+            and autre.id not in deplacees
+            and autre.heure_debut in contexte.index_seance
+        }
+        depart = contexte.index_seance.get(reference.heure_debut)
+        demi_depart = contexte.demi_de_seance.get(depart)
+        if demi_depart is not None:
+            ouvertes = contexte.ouvertes_demi.get(
+                (reference.jour, demi_depart), [])
+            rangs = sorted(i for i, s in enumerate(ouvertes)
+                           if s in restantes)
+            if len(rangs) >= 2 and rangs[-1] - rangs[0] + 1 != len(rangs):
+                return TROU_ELEVES, {}
 
     # Salles : attribuées une par une pour que les deux demi-groupes
     # d'un fouj n'héritent pas de la même.

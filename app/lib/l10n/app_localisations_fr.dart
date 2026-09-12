@@ -544,4 +544,283 @@ class LFr extends L {
   @override
   String get motifConsecutives =>
       'L\'enseignant dépasserait ses heures consécutives';
+
+  @override
+  String get genererTitre => 'Générer l\'emploi du temps';
+
+  @override
+  String get genererAide =>
+      'Le solveur propose une grille complète. Vous pourrez ensuite la retoucher à la main.';
+
+  @override
+  String get tempsDeCalcul => 'Temps de calcul';
+
+  @override
+  String get aideTempsDeCalcul =>
+      'Plus long ne veut pas dire beaucoup mieux : l\'essentiel se joue dans les premières minutes.';
+
+  @override
+  String minutes(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n minutes',
+      one: '1 minute',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lancer => 'Lancer';
+
+  @override
+  String get interrompre => 'Interrompre';
+
+  @override
+  String get laisserTourner => 'Laisser tourner';
+
+  @override
+  String secondesEcoulees(int ecoule, int limite) {
+    return '$ecoule s sur $limite s';
+  }
+
+  @override
+  String solutionsTrouvees(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n solutions',
+      one: '1 solution',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String coutCourant(String valeur) {
+    return 'Coût $valeur';
+  }
+
+  @override
+  String leconsPlacees(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n leçons placées',
+      one: '1 leçon placée',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get qualiteObtenue => 'Qualité obtenue';
+
+  @override
+  String trousEleves(String n) {
+    return 'Trous élèves : $n';
+  }
+
+  @override
+  String trousProfesseurs(String n) {
+    return 'Trous professeurs : $n';
+  }
+
+  @override
+  String get generer => 'Générer';
+
+  @override
+  String get heuresPlacees => 'heures placées';
+
+  @override
+  String get trousElevesCourt => 'trous élèves';
+
+  @override
+  String get trousProfesseursCourt => 'trous professeurs';
+
+  @override
+  String get demiJourneesIsolees => 'demi-journées à 1 h';
+
+  @override
+  String get journeesSixHeures => 'journées à 6 h ou plus';
+
+  @override
+  String get matieresTroisHeures => 'matières à 3 h le même jour';
+
+  @override
+  String get occupationSeances => 'Occupation des séances';
+
+  @override
+  String get serviceDesProfesseurs => 'Service des professeurs';
+
+  @override
+  String get chargeDesDivisions => 'Charge des divisions';
+
+  @override
+  String get heures => 'Heures';
+
+  @override
+  String get jours => 'Jours';
+
+  @override
+  String get trous => 'Trous';
+
+  @override
+  String get maxJour => 'Max/jour';
+
+  @override
+  String get journeeLaPlusChargee => 'Journée la plus chargée';
+
+  @override
+  String get ongletGrille => 'Grille horaire';
+
+  @override
+  String get ongletCriteres => 'Critères';
+
+  @override
+  String get ongletFenetres => 'Fenêtres';
+
+  @override
+  String get reglagesEnregistres => 'Réglages enregistrés.';
+
+  @override
+  String get fermeturesTitre => 'Séances ouvertes';
+
+  @override
+  String get fermeturesAide =>
+      'Décochez une case pour fermer la séance ce jour-là. Le mardi après-midi, par exemple.';
+
+  @override
+  String get horairesTitre => 'Horaires des séances';
+
+  @override
+  String get debut => 'Début';
+
+  @override
+  String get fin => 'Fin';
+
+  @override
+  String get tempsDeCalculDefaut => 'Temps de calcul par défaut (s)';
+
+  @override
+  String get aideTempsDefaut =>
+      'Utilisé quand une génération n\'en précise pas.';
+
+  @override
+  String get typeSalleOrdinaire => 'Type de salle ordinaire';
+
+  @override
+  String get aideTypeSalleOrdinaire =>
+      'Nom du type utilisé pour les cours sans exigence particulière.';
+
+  @override
+  String get criteresAide =>
+      'Ces poids arbitrent entre des souhaits contradictoires. Zéro désactive un critère ; aucun n\'empêche une génération d\'aboutir.';
+
+  @override
+  String get critereTrousProfesseurs => 'Heure creuse d\'un professeur';
+
+  @override
+  String get aideTrousProfesseurs =>
+      'Une heure sans cours au milieu de sa demi-journée.';
+
+  @override
+  String get critereVideDeuxHeures => 'Vide de deux heures';
+
+  @override
+  String get aideVideDeuxHeures =>
+      'Deux heures creuses d\'affilée : bien pire qu\'une seule.';
+
+  @override
+  String get critereJourneeHachee => 'Journée hachée';
+
+  @override
+  String get aideJourneeHachee =>
+      'Plus d\'une heure creuse dans la même journée, pause déjeuner comprise dans l\'amplitude.';
+
+  @override
+  String get critereHeureIsolee => 'Déplacement pour une seule heure';
+
+  @override
+  String get aideHeureIsolee =>
+      'Le professeur ne vient qu\'une heure sur la demi-journée.';
+
+  @override
+  String get critereJourPresence => 'Jour de présence';
+
+  @override
+  String get aideJourPresence => 'Chaque jour en moins est un jour libéré.';
+
+  @override
+  String get criterePermanence => 'Permanence (récompense)';
+
+  @override
+  String get aidePermanenceCritere =>
+      'Bonus quand une heure creuse est comblée par de l\'accueil.';
+
+  @override
+  String get critereBlocsHorsPolitique => 'Bloc hors politique du programme';
+
+  @override
+  String get aideBlocsHorsPolitique =>
+      'Le programme dit comment répartir une matière entre les journées : un bloc de 2 h autorise une seule journée doublée.';
+
+  @override
+  String get critereMatieresRepetees => 'Matières doublées empilées';
+
+  @override
+  String get aideMatieresRepetees =>
+      'Plusieurs matières à 2 h ou plus le même jour pour une division.';
+
+  @override
+  String get critereEquiteFins => 'Équité des fins tardives';
+
+  @override
+  String get aideEquiteFins =>
+      'Répartit les dernières séances entre les divisions.';
+
+  @override
+  String get critereEquilibreJournees => 'Équilibre des journées';
+
+  @override
+  String get aideEquilibreJournees =>
+      'Évite d\'alterner journées très chargées et très légères.';
+
+  @override
+  String get critereDemiJournees => 'Demi-journée travaillée';
+
+  @override
+  String get aideDemiJournees =>
+      'Regroupe les cours sur moins de demi-journées.';
+
+  @override
+  String get critereMatieresLourdes => 'Matière lourde l\'après-midi';
+
+  @override
+  String get aideMatieresLourdes =>
+      'Pousse les matières à fort coefficient vers le matin.';
+
+  @override
+  String get seuilsSeanceTitre => 'Heure de sortie des élèves';
+
+  @override
+  String get seuilsSeanceAide =>
+      'Coût d\'occupation de chaque séance. Laissez à zéro celles que vous jugez idéales.';
+
+  @override
+  String get seuilsChargeTitre => 'Charge quotidienne des professeurs';
+
+  @override
+  String get seuilsChargeAide =>
+      'Coût d\'atteindre ce nombre d\'heures dans la journée. Les seuils se cumulent.';
+
+  @override
+  String get fenetresAide =>
+      'Une fenêtre interdit une matière sur une plage dans tout l\'établissement — journée d\'inspection, réunion de coordination.';
+
+  @override
+  String get aucuneFenetre => 'Aucune fenêtre déclarée.';
+
+  @override
+  String fenetreDetail(String jour, String seances) {
+    return 'Jour $jour · séances $seances';
+  }
 }

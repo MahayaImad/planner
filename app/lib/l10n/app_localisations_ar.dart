@@ -558,4 +558,287 @@ class LAr extends L {
 
   @override
   String get motifConsecutives => 'سيتجاوز الأستاذ ساعاته المتتالية';
+
+  @override
+  String get genererTitre => 'توليد جدول التوقيت';
+
+  @override
+  String get genererAide =>
+      'يقترح المحرّك جدولًا كاملًا. يمكنك بعد ذلك تعديله يدويًا.';
+
+  @override
+  String get tempsDeCalcul => 'مدة الحساب';
+
+  @override
+  String get aideTempsDeCalcul =>
+      'المدة الأطول لا تعني نتيجة أفضل بكثير: الأساس يُحسم في الدقائق الأولى.';
+
+  @override
+  String minutes(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n دقيقة',
+      many: '$n دقيقة',
+      few: '$n دقائق',
+      two: 'دقيقتان',
+      one: 'دقيقة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get lancer => 'ابدأ';
+
+  @override
+  String get interrompre => 'إيقاف';
+
+  @override
+  String get laisserTourner => 'اتركه يعمل';
+
+  @override
+  String secondesEcoulees(int ecoule, int limite) {
+    return '$ecoule ث من $limite ث';
+  }
+
+  @override
+  String solutionsTrouvees(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n حل',
+      many: '$n حلًا',
+      few: '$n حلول',
+      two: 'حلّان',
+      one: 'حل واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String coutCourant(String valeur) {
+    return 'التكلفة $valeur';
+  }
+
+  @override
+  String leconsPlacees(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n حصة موضوعة',
+      many: '$n حصة موضوعة',
+      few: '$n حصص موضوعة',
+      two: 'حصتان موضوعتان',
+      one: 'حصة واحدة موضوعة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get qualiteObtenue => 'الجودة المحصّلة';
+
+  @override
+  String trousEleves(String n) {
+    return 'فراغات التلاميذ: $n';
+  }
+
+  @override
+  String trousProfesseurs(String n) {
+    return 'فراغات الأساتذة: $n';
+  }
+
+  @override
+  String get generer => 'توليد';
+
+  @override
+  String get heuresPlacees => 'حصص موضوعة';
+
+  @override
+  String get trousElevesCourt => 'فراغات التلاميذ';
+
+  @override
+  String get trousProfesseursCourt => 'فراغات الأساتذة';
+
+  @override
+  String get demiJourneesIsolees => 'أنصاف أيام بساعة واحدة';
+
+  @override
+  String get journeesSixHeures => 'أيام بست ساعات أو أكثر';
+
+  @override
+  String get matieresTroisHeures => 'مواد بثلاث ساعات في اليوم';
+
+  @override
+  String get occupationSeances => 'إشغال الحصص';
+
+  @override
+  String get serviceDesProfesseurs => 'خدمة الأساتذة';
+
+  @override
+  String get chargeDesDivisions => 'عبء الأفواج';
+
+  @override
+  String get heures => 'الساعات';
+
+  @override
+  String get jours => 'الأيام';
+
+  @override
+  String get trous => 'الفراغات';
+
+  @override
+  String get maxJour => 'الأقصى/اليوم';
+
+  @override
+  String get journeeLaPlusChargee => 'أثقل يوم';
+
+  @override
+  String get ongletGrille => 'الشبكة الزمنية';
+
+  @override
+  String get ongletCriteres => 'المعايير';
+
+  @override
+  String get ongletFenetres => 'النوافذ';
+
+  @override
+  String get reglagesEnregistres => 'تم حفظ الإعدادات.';
+
+  @override
+  String get fermeturesTitre => 'الحصص المفتوحة';
+
+  @override
+  String get fermeturesAide =>
+      'أزل العلامة لإغلاق الحصة في ذلك اليوم — بعد ظهر الثلاثاء مثلًا.';
+
+  @override
+  String get horairesTitre => 'توقيت الحصص';
+
+  @override
+  String get debut => 'البداية';
+
+  @override
+  String get fin => 'النهاية';
+
+  @override
+  String get tempsDeCalculDefaut => 'مدة الحساب الافتراضية (ث)';
+
+  @override
+  String get aideTempsDefaut => 'تُستعمل عندما لا يحدّدها التوليد.';
+
+  @override
+  String get typeSalleOrdinaire => 'نوع القاعة العادية';
+
+  @override
+  String get aideTypeSalleOrdinaire =>
+      'اسم النوع المستعمل للحصص دون متطلبات خاصة.';
+
+  @override
+  String get criteresAide =>
+      'توازن هذه الأوزان بين رغبات متعارضة. الصفر يعطّل معيارًا، ولا يمنع أيٌّ منها التوليد من النجاح.';
+
+  @override
+  String get critereTrousProfesseurs => 'ساعة فارغة لأستاذ';
+
+  @override
+  String get aideTrousProfesseurs => 'ساعة بلا حصة في وسط نصف يومه.';
+
+  @override
+  String get critereVideDeuxHeures => 'فراغ من ساعتين';
+
+  @override
+  String get aideVideDeuxHeures =>
+      'ساعتان فارغتان متتاليتان: أسوأ بكثير من واحدة.';
+
+  @override
+  String get critereJourneeHachee => 'يوم مقطّع';
+
+  @override
+  String get aideJourneeHachee =>
+      'أكثر من ساعة فارغة في اليوم نفسه، بما في ذلك فترة الغداء.';
+
+  @override
+  String get critereHeureIsolee => 'تنقّل من أجل ساعة واحدة';
+
+  @override
+  String get aideHeureIsolee => 'الأستاذ يحضر ساعة واحدة فقط في نصف اليوم.';
+
+  @override
+  String get critereJourPresence => 'يوم حضور';
+
+  @override
+  String get aideJourPresence => 'كل يوم أقلّ هو يوم محرّر.';
+
+  @override
+  String get criterePermanence => 'حصة استقبال (مكافأة)';
+
+  @override
+  String get aidePermanenceCritere =>
+      'مكافأة عندما تُملأ ساعة فارغة بحصة استقبال.';
+
+  @override
+  String get critereBlocsHorsPolitique => 'حصة مزدوجة خارج سياسة البرنامج';
+
+  @override
+  String get aideBlocsHorsPolitique =>
+      'يحدّد البرنامج كيفية توزيع المادة على الأيام: حصة مزدوجة تسمح بيوم مضاعف واحد.';
+
+  @override
+  String get critereMatieresRepetees => 'تراكم المواد المضاعفة';
+
+  @override
+  String get aideMatieresRepetees =>
+      'عدة مواد بساعتين أو أكثر في اليوم نفسه لفوج واحد.';
+
+  @override
+  String get critereEquiteFins => 'عدالة الخروج المتأخّر';
+
+  @override
+  String get aideEquiteFins => 'يوزّع الحصص الأخيرة بين الأفواج.';
+
+  @override
+  String get critereEquilibreJournees => 'توازن الأيام';
+
+  @override
+  String get aideEquilibreJournees =>
+      'يتجنّب التناوب بين أيام مثقلة وأيام خفيفة.';
+
+  @override
+  String get critereDemiJournees => 'نصف يوم مشتغل';
+
+  @override
+  String get aideDemiJournees => 'يجمع الحصص في أنصاف أيام أقل.';
+
+  @override
+  String get critereMatieresLourdes => 'مادة ثقيلة بعد الظهر';
+
+  @override
+  String get aideMatieresLourdes =>
+      'يدفع المواد ذات المعامل العالي نحو الصباح.';
+
+  @override
+  String get seuilsSeanceTitre => 'وقت خروج التلاميذ';
+
+  @override
+  String get seuilsSeanceAide =>
+      'تكلفة إشغال كل حصة. اترك صفرًا للحصص التي تراها مثالية.';
+
+  @override
+  String get seuilsChargeTitre => 'العبء اليومي للأساتذة';
+
+  @override
+  String get seuilsChargeAide =>
+      'تكلفة بلوغ هذا العدد من الساعات في اليوم. العتبات تتراكم.';
+
+  @override
+  String get fenetresAide =>
+      'تمنع النافذة مادةً في فترة معيّنة عبر المؤسسة كلها — يوم تفتيش، اجتماع تنسيق.';
+
+  @override
+  String get aucuneFenetre => 'لا توجد نافذة مصرّح بها.';
+
+  @override
+  String fenetreDetail(String jour, String seances) {
+    return 'اليوم $jour · الحصص $seances';
+  }
 }

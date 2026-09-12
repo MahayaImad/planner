@@ -248,5 +248,142 @@
   "motifPlafondProfesseur": "L'enseignant atteindrait son plafond du jour",
   "motifPlafondDivision": "La division atteindrait son plafond du jour",
   "motifPlafondMatiere": "Cette matière atteindrait son plafond du jour",
-  "motifConsecutives": "L'enseignant dépasserait ses heures consécutives"
+  "motifConsecutives": "L'enseignant dépasserait ses heures consécutives",
+  "genererTitre": "Générer l'emploi du temps",
+  "genererAide": "Le solveur propose une grille complète. Vous pourrez ensuite la retoucher à la main.",
+  "tempsDeCalcul": "Temps de calcul",
+  "aideTempsDeCalcul": "Plus long ne veut pas dire beaucoup mieux : l'essentiel se joue dans les premières minutes.",
+  "minutes": "{n, plural, =1{1 minute} other{{n} minutes}}",
+  "lancer": "Lancer",
+  "interrompre": "Interrompre",
+  "laisserTourner": "Laisser tourner",
+  "secondesEcoulees": "{ecoule} s sur {limite} s",
+  "solutionsTrouvees": "{n, plural, =1{1 solution} other{{n} solutions}}",
+  "coutCourant": "Coût {valeur}",
+  "leconsPlacees": "{n, plural, =1{1 leçon placée} other{{n} leçons placées}}",
+  "qualiteObtenue": "Qualité obtenue",
+  "trousEleves": "Trous élèves : {n}",
+  "trousProfesseurs": "Trous professeurs : {n}",
+  "generer": "Générer",
+  "@minutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@secondesEcoulees": {
+    "placeholders": {
+      "ecoule": {
+        "type": "int"
+      },
+      "limite": {
+        "type": "int"
+      }
+    }
+  },
+  "@solutionsTrouvees": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@coutCourant": {
+    "placeholders": {
+      "valeur": {
+        "type": "String"
+      }
+    }
+  },
+  "@leconsPlacees": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@trousEleves": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "@trousProfesseurs": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "heuresPlacees": "heures placées",
+  "trousElevesCourt": "trous élèves",
+  "trousProfesseursCourt": "trous professeurs",
+  "demiJourneesIsolees": "demi-journées à 1 h",
+  "journeesSixHeures": "journées à 6 h ou plus",
+  "matieresTroisHeures": "matières à 3 h le même jour",
+  "occupationSeances": "Occupation des séances",
+  "serviceDesProfesseurs": "Service des professeurs",
+  "chargeDesDivisions": "Charge des divisions",
+  "heures": "Heures",
+  "jours": "Jours",
+  "trous": "Trous",
+  "maxJour": "Max/jour",
+  "journeeLaPlusChargee": "Journée la plus chargée",
+  "ongletGrille": "Grille horaire",
+  "ongletCriteres": "Critères",
+  "ongletFenetres": "Fenêtres",
+  "reglagesEnregistres": "Réglages enregistrés.",
+  "fermeturesTitre": "Séances ouvertes",
+  "fermeturesAide": "Décochez une case pour fermer la séance ce jour-là. Le mardi après-midi, par exemple.",
+  "horairesTitre": "Horaires des séances",
+  "debut": "Début",
+  "fin": "Fin",
+  "tempsDeCalculDefaut": "Temps de calcul par défaut (s)",
+  "aideTempsDefaut": "Utilisé quand une génération n'en précise pas.",
+  "typeSalleOrdinaire": "Type de salle ordinaire",
+  "aideTypeSalleOrdinaire": "Nom du type utilisé pour les cours sans exigence particulière.",
+  "criteresAide": "Ces poids arbitrent entre des souhaits contradictoires. Zéro désactive un critère ; aucun n'empêche une génération d'aboutir.",
+  "critereTrousProfesseurs": "Heure creuse d'un professeur",
+  "aideTrousProfesseurs": "Une heure sans cours au milieu de sa demi-journée.",
+  "critereVideDeuxHeures": "Vide de deux heures",
+  "aideVideDeuxHeures": "Deux heures creuses d'affilée : bien pire qu'une seule.",
+  "critereJourneeHachee": "Journée hachée",
+  "aideJourneeHachee": "Plus d'une heure creuse dans la même journée, pause déjeuner comprise dans l'amplitude.",
+  "critereHeureIsolee": "Déplacement pour une seule heure",
+  "aideHeureIsolee": "Le professeur ne vient qu'une heure sur la demi-journée.",
+  "critereJourPresence": "Jour de présence",
+  "aideJourPresence": "Chaque jour en moins est un jour libéré.",
+  "criterePermanence": "Permanence (récompense)",
+  "aidePermanenceCritere": "Bonus quand une heure creuse est comblée par de l'accueil.",
+  "critereBlocsHorsPolitique": "Bloc hors politique du programme",
+  "aideBlocsHorsPolitique": "Le programme dit comment répartir une matière entre les journées : un bloc de 2 h autorise une seule journée doublée.",
+  "critereMatieresRepetees": "Matières doublées empilées",
+  "aideMatieresRepetees": "Plusieurs matières à 2 h ou plus le même jour pour une division.",
+  "critereEquiteFins": "Équité des fins tardives",
+  "aideEquiteFins": "Répartit les dernières séances entre les divisions.",
+  "critereEquilibreJournees": "Équilibre des journées",
+  "aideEquilibreJournees": "Évite d'alterner journées très chargées et très légères.",
+  "critereDemiJournees": "Demi-journée travaillée",
+  "aideDemiJournees": "Regroupe les cours sur moins de demi-journées.",
+  "critereMatieresLourdes": "Matière lourde l'après-midi",
+  "aideMatieresLourdes": "Pousse les matières à fort coefficient vers le matin.",
+  "seuilsSeanceTitre": "Heure de sortie des élèves",
+  "seuilsSeanceAide": "Coût d'occupation de chaque séance. Laissez à zéro celles que vous jugez idéales.",
+  "seuilsChargeTitre": "Charge quotidienne des professeurs",
+  "seuilsChargeAide": "Coût d'atteindre ce nombre d'heures dans la journée. Les seuils se cumulent.",
+  "fenetresAide": "Une fenêtre interdit une matière sur une plage dans tout l'établissement — journée d'inspection, réunion de coordination.",
+  "aucuneFenetre": "Aucune fenêtre déclarée.",
+  "fenetreDetail": "Jour {jour} · séances {seances}",
+  "@fenetreDetail": {
+    "placeholders": {
+      "jour": {
+        "type": "String"
+      },
+      "seances": {
+        "type": "String"
+      }
+    }
+  }
 }

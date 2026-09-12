@@ -248,5 +248,142 @@
   "motifPlafondProfesseur": "سيبلغ الأستاذ حدّه اليومي",
   "motifPlafondDivision": "سيبلغ الفوج حدّه اليومي",
   "motifPlafondMatiere": "ستبلغ هذه المادة حدّها اليومي",
-  "motifConsecutives": "سيتجاوز الأستاذ ساعاته المتتالية"
+  "motifConsecutives": "سيتجاوز الأستاذ ساعاته المتتالية",
+  "genererTitre": "توليد جدول التوقيت",
+  "genererAide": "يقترح المحرّك جدولًا كاملًا. يمكنك بعد ذلك تعديله يدويًا.",
+  "tempsDeCalcul": "مدة الحساب",
+  "aideTempsDeCalcul": "المدة الأطول لا تعني نتيجة أفضل بكثير: الأساس يُحسم في الدقائق الأولى.",
+  "minutes": "{n, plural, =1{دقيقة واحدة} =2{دقيقتان} few{{n} دقائق} many{{n} دقيقة} other{{n} دقيقة}}",
+  "lancer": "ابدأ",
+  "interrompre": "إيقاف",
+  "laisserTourner": "اتركه يعمل",
+  "secondesEcoulees": "{ecoule} ث من {limite} ث",
+  "solutionsTrouvees": "{n, plural, =1{حل واحد} =2{حلّان} few{{n} حلول} many{{n} حلًا} other{{n} حل}}",
+  "coutCourant": "التكلفة {valeur}",
+  "leconsPlacees": "{n, plural, =1{حصة واحدة موضوعة} =2{حصتان موضوعتان} few{{n} حصص موضوعة} many{{n} حصة موضوعة} other{{n} حصة موضوعة}}",
+  "qualiteObtenue": "الجودة المحصّلة",
+  "trousEleves": "فراغات التلاميذ: {n}",
+  "trousProfesseurs": "فراغات الأساتذة: {n}",
+  "generer": "توليد",
+  "@minutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@secondesEcoulees": {
+    "placeholders": {
+      "ecoule": {
+        "type": "int"
+      },
+      "limite": {
+        "type": "int"
+      }
+    }
+  },
+  "@solutionsTrouvees": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@coutCourant": {
+    "placeholders": {
+      "valeur": {
+        "type": "String"
+      }
+    }
+  },
+  "@leconsPlacees": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@trousEleves": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "@trousProfesseurs": {
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "heuresPlacees": "حصص موضوعة",
+  "trousElevesCourt": "فراغات التلاميذ",
+  "trousProfesseursCourt": "فراغات الأساتذة",
+  "demiJourneesIsolees": "أنصاف أيام بساعة واحدة",
+  "journeesSixHeures": "أيام بست ساعات أو أكثر",
+  "matieresTroisHeures": "مواد بثلاث ساعات في اليوم",
+  "occupationSeances": "إشغال الحصص",
+  "serviceDesProfesseurs": "خدمة الأساتذة",
+  "chargeDesDivisions": "عبء الأفواج",
+  "heures": "الساعات",
+  "jours": "الأيام",
+  "trous": "الفراغات",
+  "maxJour": "الأقصى/اليوم",
+  "journeeLaPlusChargee": "أثقل يوم",
+  "ongletGrille": "الشبكة الزمنية",
+  "ongletCriteres": "المعايير",
+  "ongletFenetres": "النوافذ",
+  "reglagesEnregistres": "تم حفظ الإعدادات.",
+  "fermeturesTitre": "الحصص المفتوحة",
+  "fermeturesAide": "أزل العلامة لإغلاق الحصة في ذلك اليوم — بعد ظهر الثلاثاء مثلًا.",
+  "horairesTitre": "توقيت الحصص",
+  "debut": "البداية",
+  "fin": "النهاية",
+  "tempsDeCalculDefaut": "مدة الحساب الافتراضية (ث)",
+  "aideTempsDefaut": "تُستعمل عندما لا يحدّدها التوليد.",
+  "typeSalleOrdinaire": "نوع القاعة العادية",
+  "aideTypeSalleOrdinaire": "اسم النوع المستعمل للحصص دون متطلبات خاصة.",
+  "criteresAide": "توازن هذه الأوزان بين رغبات متعارضة. الصفر يعطّل معيارًا، ولا يمنع أيٌّ منها التوليد من النجاح.",
+  "critereTrousProfesseurs": "ساعة فارغة لأستاذ",
+  "aideTrousProfesseurs": "ساعة بلا حصة في وسط نصف يومه.",
+  "critereVideDeuxHeures": "فراغ من ساعتين",
+  "aideVideDeuxHeures": "ساعتان فارغتان متتاليتان: أسوأ بكثير من واحدة.",
+  "critereJourneeHachee": "يوم مقطّع",
+  "aideJourneeHachee": "أكثر من ساعة فارغة في اليوم نفسه، بما في ذلك فترة الغداء.",
+  "critereHeureIsolee": "تنقّل من أجل ساعة واحدة",
+  "aideHeureIsolee": "الأستاذ يحضر ساعة واحدة فقط في نصف اليوم.",
+  "critereJourPresence": "يوم حضور",
+  "aideJourPresence": "كل يوم أقلّ هو يوم محرّر.",
+  "criterePermanence": "حصة استقبال (مكافأة)",
+  "aidePermanenceCritere": "مكافأة عندما تُملأ ساعة فارغة بحصة استقبال.",
+  "critereBlocsHorsPolitique": "حصة مزدوجة خارج سياسة البرنامج",
+  "aideBlocsHorsPolitique": "يحدّد البرنامج كيفية توزيع المادة على الأيام: حصة مزدوجة تسمح بيوم مضاعف واحد.",
+  "critereMatieresRepetees": "تراكم المواد المضاعفة",
+  "aideMatieresRepetees": "عدة مواد بساعتين أو أكثر في اليوم نفسه لفوج واحد.",
+  "critereEquiteFins": "عدالة الخروج المتأخّر",
+  "aideEquiteFins": "يوزّع الحصص الأخيرة بين الأفواج.",
+  "critereEquilibreJournees": "توازن الأيام",
+  "aideEquilibreJournees": "يتجنّب التناوب بين أيام مثقلة وأيام خفيفة.",
+  "critereDemiJournees": "نصف يوم مشتغل",
+  "aideDemiJournees": "يجمع الحصص في أنصاف أيام أقل.",
+  "critereMatieresLourdes": "مادة ثقيلة بعد الظهر",
+  "aideMatieresLourdes": "يدفع المواد ذات المعامل العالي نحو الصباح.",
+  "seuilsSeanceTitre": "وقت خروج التلاميذ",
+  "seuilsSeanceAide": "تكلفة إشغال كل حصة. اترك صفرًا للحصص التي تراها مثالية.",
+  "seuilsChargeTitre": "العبء اليومي للأساتذة",
+  "seuilsChargeAide": "تكلفة بلوغ هذا العدد من الساعات في اليوم. العتبات تتراكم.",
+  "fenetresAide": "تمنع النافذة مادةً في فترة معيّنة عبر المؤسسة كلها — يوم تفتيش، اجتماع تنسيق.",
+  "aucuneFenetre": "لا توجد نافذة مصرّح بها.",
+  "fenetreDetail": "اليوم {jour} · الحصص {seances}",
+  "@fenetreDetail": {
+    "placeholders": {
+      "jour": {
+        "type": "String"
+      },
+      "seances": {
+        "type": "String"
+      }
+    }
+  }
 }

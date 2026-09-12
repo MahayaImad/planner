@@ -127,7 +127,15 @@ def calculer(db: Session, ecole_id: int, edt: EmploiDuTemps) -> Dict:
         for jour in jours:
             occupees = classe_jour[(classe_id, jour)]
             charges.append(len(occupees))
-            trous += _trous(_positions(occupees, ouvertes_jour[jour]))
+            # Par demi-journée, comme pour les professeurs et comme le
+            # solveur : une division qui finit à 11 h et reprend à 13 h
+            # n'a pas d'heure creuse, elle déjeune. Compter sur la
+            # journée entière faisait apparaître des trous inexistants.
+            for shift, _ in grille.shifts:
+                dans = {s for s in occupees if demi_de_seance.get(s) == shift}
+                if dans:
+                    trous += _trous(
+                        _positions(dans, ouvertes_demi[(jour, shift)]))
             if derniere_ouverte[jour] in occupees:
                 tardives += 1
             du_jour = matiere_jour[(classe_id, jour)]

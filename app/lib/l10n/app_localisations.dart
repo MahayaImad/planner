@@ -924,6 +924,456 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'L\'enseignant dépasserait ses heures consécutives'**
   String get motifConsecutives;
+
+  /// No description provided for @genererTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Générer l\'emploi du temps'**
+  String get genererTitre;
+
+  /// No description provided for @genererAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le solveur propose une grille complète. Vous pourrez ensuite la retoucher à la main.'**
+  String get genererAide;
+
+  /// No description provided for @tempsDeCalcul.
+  ///
+  /// In fr, this message translates to:
+  /// **'Temps de calcul'**
+  String get tempsDeCalcul;
+
+  /// No description provided for @aideTempsDeCalcul.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus long ne veut pas dire beaucoup mieux : l\'essentiel se joue dans les premières minutes.'**
+  String get aideTempsDeCalcul;
+
+  /// No description provided for @minutes.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 minute} other{{n} minutes}}'**
+  String minutes(int n);
+
+  /// No description provided for @lancer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lancer'**
+  String get lancer;
+
+  /// No description provided for @interrompre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Interrompre'**
+  String get interrompre;
+
+  /// No description provided for @laisserTourner.
+  ///
+  /// In fr, this message translates to:
+  /// **'Laisser tourner'**
+  String get laisserTourner;
+
+  /// No description provided for @secondesEcoulees.
+  ///
+  /// In fr, this message translates to:
+  /// **'{ecoule} s sur {limite} s'**
+  String secondesEcoulees(int ecoule, int limite);
+
+  /// No description provided for @solutionsTrouvees.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 solution} other{{n} solutions}}'**
+  String solutionsTrouvees(int n);
+
+  /// No description provided for @coutCourant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Coût {valeur}'**
+  String coutCourant(String valeur);
+
+  /// No description provided for @leconsPlacees.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 leçon placée} other{{n} leçons placées}}'**
+  String leconsPlacees(int n);
+
+  /// No description provided for @qualiteObtenue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qualité obtenue'**
+  String get qualiteObtenue;
+
+  /// No description provided for @trousEleves.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trous élèves : {n}'**
+  String trousEleves(String n);
+
+  /// No description provided for @trousProfesseurs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trous professeurs : {n}'**
+  String trousProfesseurs(String n);
+
+  /// No description provided for @generer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Générer'**
+  String get generer;
+
+  /// No description provided for @heuresPlacees.
+  ///
+  /// In fr, this message translates to:
+  /// **'heures placées'**
+  String get heuresPlacees;
+
+  /// No description provided for @trousElevesCourt.
+  ///
+  /// In fr, this message translates to:
+  /// **'trous élèves'**
+  String get trousElevesCourt;
+
+  /// No description provided for @trousProfesseursCourt.
+  ///
+  /// In fr, this message translates to:
+  /// **'trous professeurs'**
+  String get trousProfesseursCourt;
+
+  /// No description provided for @demiJourneesIsolees.
+  ///
+  /// In fr, this message translates to:
+  /// **'demi-journées à 1 h'**
+  String get demiJourneesIsolees;
+
+  /// No description provided for @journeesSixHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'journées à 6 h ou plus'**
+  String get journeesSixHeures;
+
+  /// No description provided for @matieresTroisHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'matières à 3 h le même jour'**
+  String get matieresTroisHeures;
+
+  /// No description provided for @occupationSeances.
+  ///
+  /// In fr, this message translates to:
+  /// **'Occupation des séances'**
+  String get occupationSeances;
+
+  /// No description provided for @serviceDesProfesseurs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Service des professeurs'**
+  String get serviceDesProfesseurs;
+
+  /// No description provided for @chargeDesDivisions.
+  ///
+  /// In fr, this message translates to:
+  /// **'Charge des divisions'**
+  String get chargeDesDivisions;
+
+  /// No description provided for @heures.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures'**
+  String get heures;
+
+  /// No description provided for @jours.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jours'**
+  String get jours;
+
+  /// No description provided for @trous.
+  ///
+  /// In fr, this message translates to:
+  /// **'Trous'**
+  String get trous;
+
+  /// No description provided for @maxJour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Max/jour'**
+  String get maxJour;
+
+  /// No description provided for @journeeLaPlusChargee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Journée la plus chargée'**
+  String get journeeLaPlusChargee;
+
+  /// No description provided for @ongletGrille.
+  ///
+  /// In fr, this message translates to:
+  /// **'Grille horaire'**
+  String get ongletGrille;
+
+  /// No description provided for @ongletCriteres.
+  ///
+  /// In fr, this message translates to:
+  /// **'Critères'**
+  String get ongletCriteres;
+
+  /// No description provided for @ongletFenetres.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fenêtres'**
+  String get ongletFenetres;
+
+  /// No description provided for @reglagesEnregistres.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réglages enregistrés.'**
+  String get reglagesEnregistres;
+
+  /// No description provided for @fermeturesTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Séances ouvertes'**
+  String get fermeturesTitre;
+
+  /// No description provided for @fermeturesAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Décochez une case pour fermer la séance ce jour-là. Le mardi après-midi, par exemple.'**
+  String get fermeturesAide;
+
+  /// No description provided for @horairesTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Horaires des séances'**
+  String get horairesTitre;
+
+  /// No description provided for @debut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Début'**
+  String get debut;
+
+  /// No description provided for @fin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fin'**
+  String get fin;
+
+  /// No description provided for @tempsDeCalculDefaut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Temps de calcul par défaut (s)'**
+  String get tempsDeCalculDefaut;
+
+  /// No description provided for @aideTempsDefaut.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilisé quand une génération n\'en précise pas.'**
+  String get aideTempsDefaut;
+
+  /// No description provided for @typeSalleOrdinaire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Type de salle ordinaire'**
+  String get typeSalleOrdinaire;
+
+  /// No description provided for @aideTypeSalleOrdinaire.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom du type utilisé pour les cours sans exigence particulière.'**
+  String get aideTypeSalleOrdinaire;
+
+  /// No description provided for @criteresAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ces poids arbitrent entre des souhaits contradictoires. Zéro désactive un critère ; aucun n\'empêche une génération d\'aboutir.'**
+  String get criteresAide;
+
+  /// No description provided for @critereTrousProfesseurs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heure creuse d\'un professeur'**
+  String get critereTrousProfesseurs;
+
+  /// No description provided for @aideTrousProfesseurs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une heure sans cours au milieu de sa demi-journée.'**
+  String get aideTrousProfesseurs;
+
+  /// No description provided for @critereVideDeuxHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vide de deux heures'**
+  String get critereVideDeuxHeures;
+
+  /// No description provided for @aideVideDeuxHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'Deux heures creuses d\'affilée : bien pire qu\'une seule.'**
+  String get aideVideDeuxHeures;
+
+  /// No description provided for @critereJourneeHachee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Journée hachée'**
+  String get critereJourneeHachee;
+
+  /// No description provided for @aideJourneeHachee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus d\'une heure creuse dans la même journée, pause déjeuner comprise dans l\'amplitude.'**
+  String get aideJourneeHachee;
+
+  /// No description provided for @critereHeureIsolee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déplacement pour une seule heure'**
+  String get critereHeureIsolee;
+
+  /// No description provided for @aideHeureIsolee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le professeur ne vient qu\'une heure sur la demi-journée.'**
+  String get aideHeureIsolee;
+
+  /// No description provided for @critereJourPresence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jour de présence'**
+  String get critereJourPresence;
+
+  /// No description provided for @aideJourPresence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chaque jour en moins est un jour libéré.'**
+  String get aideJourPresence;
+
+  /// No description provided for @criterePermanence.
+  ///
+  /// In fr, this message translates to:
+  /// **'Permanence (récompense)'**
+  String get criterePermanence;
+
+  /// No description provided for @aidePermanenceCritere.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bonus quand une heure creuse est comblée par de l\'accueil.'**
+  String get aidePermanenceCritere;
+
+  /// No description provided for @critereBlocsHorsPolitique.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bloc hors politique du programme'**
+  String get critereBlocsHorsPolitique;
+
+  /// No description provided for @aideBlocsHorsPolitique.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le programme dit comment répartir une matière entre les journées : un bloc de 2 h autorise une seule journée doublée.'**
+  String get aideBlocsHorsPolitique;
+
+  /// No description provided for @critereMatieresRepetees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Matières doublées empilées'**
+  String get critereMatieresRepetees;
+
+  /// No description provided for @aideMatieresRepetees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plusieurs matières à 2 h ou plus le même jour pour une division.'**
+  String get aideMatieresRepetees;
+
+  /// No description provided for @critereEquiteFins.
+  ///
+  /// In fr, this message translates to:
+  /// **'Équité des fins tardives'**
+  String get critereEquiteFins;
+
+  /// No description provided for @aideEquiteFins.
+  ///
+  /// In fr, this message translates to:
+  /// **'Répartit les dernières séances entre les divisions.'**
+  String get aideEquiteFins;
+
+  /// No description provided for @critereEquilibreJournees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Équilibre des journées'**
+  String get critereEquilibreJournees;
+
+  /// No description provided for @aideEquilibreJournees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Évite d\'alterner journées très chargées et très légères.'**
+  String get aideEquilibreJournees;
+
+  /// No description provided for @critereDemiJournees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demi-journée travaillée'**
+  String get critereDemiJournees;
+
+  /// No description provided for @aideDemiJournees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Regroupe les cours sur moins de demi-journées.'**
+  String get aideDemiJournees;
+
+  /// No description provided for @critereMatieresLourdes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Matière lourde l\'après-midi'**
+  String get critereMatieresLourdes;
+
+  /// No description provided for @aideMatieresLourdes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pousse les matières à fort coefficient vers le matin.'**
+  String get aideMatieresLourdes;
+
+  /// No description provided for @seuilsSeanceTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heure de sortie des élèves'**
+  String get seuilsSeanceTitre;
+
+  /// No description provided for @seuilsSeanceAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Coût d\'occupation de chaque séance. Laissez à zéro celles que vous jugez idéales.'**
+  String get seuilsSeanceAide;
+
+  /// No description provided for @seuilsChargeTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Charge quotidienne des professeurs'**
+  String get seuilsChargeTitre;
+
+  /// No description provided for @seuilsChargeAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Coût d\'atteindre ce nombre d\'heures dans la journée. Les seuils se cumulent.'**
+  String get seuilsChargeAide;
+
+  /// No description provided for @fenetresAide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une fenêtre interdit une matière sur une plage dans tout l\'établissement — journée d\'inspection, réunion de coordination.'**
+  String get fenetresAide;
+
+  /// No description provided for @aucuneFenetre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune fenêtre déclarée.'**
+  String get aucuneFenetre;
+
+  /// No description provided for @fenetreDetail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jour {jour} · séances {seances}'**
+  String fenetreDetail(String jour, String seances);
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
