@@ -174,6 +174,171 @@ def test_profil_porte_le_nom_de_l_etablissement():
     assert profil["nom_complet"] == "B A"
 
 
+def _edt_genere(suffixe: str):
+    """Un emploi du temps réel, sur lequel retoucher à la main."""
+    entetes, matieres, classes, profs, edt = _etablissement(suffixe)
+    # La retouche manuelle lit la grille ENREGISTRÉE, pas celle passée
+    # à la génération : c'est le chemin réel, où le responsable règle sa
+    # grille une fois pour l'année avant de générer.
+    grille = client.get("/parametres", headers=entetes).json()["grille"]
+    grille["fermetures"] = [[2, [4, 5, 6]]]
+    assert client.put("/parametres", json={"grille": grille},
+                      headers=entetes).status_code == 200
+    tache_id = client.post(f"/emplois-du-temps/{edt}/generer",
+                           json=_demande(matieres, classes, profs),
+                           headers=entetes).json()["id"]
+    tache = _attendre(entetes, edt, tache_id)
+    assert tache["statut"] == "terminee", tache["message"]
+    lecons = client.get(f"/emplois-du-temps/{edt}/lecons",
+                        headers=entetes).json()
+    return entetes, edt, lecons
+
+
+def test_creneaux_possibles_decrivent_toute_la_grille():
+    entetes, edt, lecons = _edt_genere("creneaux")
+    lecon = lecons[0]
+
+    r = client.get(f"/emplois-du-temps/{edt}/lecons/{lecon['id']}/creneaux",
+                   headers=entetes)
+    assert r.status_code == 200, r.text
+    reponse = r.json()
+
+    grille = client.get("/parametres", headers=entetes).json()["grille"]
+    attendu = len(grille["jours"]) * len(grille["horaires"])
+    assert len(reponse["creneaux"]) == attendu
+
+    # Le créneau actuel est marqué comme tel, et reste acceptable.
+    actuels = [c for c in reponse["creneaux"] if c["actuel"]]
+    assert len(actuels) == 1
+    assert actuels[0]["jour"] == lecon["jour"]
+    assert actuels[0]["possible"]
+
+    # Le mardi après-midi est fermé dans ce jeu d'essai.
+    mardi = grille["jours"][2]
+    tardifs = [c for c in reponse["creneaux"]
+               if c["jour"] == mardi
+               and c["heure_debut"] in [h[0] for h in grille["horaires"][4:]]]
+    assert tardifs, "la grille d'essai doit avoir un mardi après-midi"
+    for creneau in tardifs:
+        assert not creneau["possible"]
+        assert creneau["motif"] == "seance_fermee"
+
+    # Là où la division a déjà cours, on ne peut pas poser la leçon.
+    occupes = {(a["jour"], a["heure_debut"]) for a in lecons
+               if a["classe_id"] == lecon["classe_id"]
+               and a["id"] != lecon["id"]}
+    refuses = [c for c in reponse["creneaux"]
+               if (c["jour"], c["heure_debut"]) in occupes]
+    assert refuses, "la division doit avoir d'autres heures"
+    for creneau in refuses:
+        assert not creneau["possible"], creneau
+
+
+def test_deplacement_respecte_les_contraintes_dures():
+    entetes, edt, lecons = _edt_genere("deplacer")
+    lecon = lecons[0]
+    creneaux = client.get(
+        f"/emplois-du-temps/{edt}/lecons/{lecon['id']}/creneaux",
+        headers=entetes).json()["creneaux"]
+
+    # Un créneau refusé doit l'être aussi par le serveur : l'interface
+    # ne fait pas foi.
+    refuse = next(c for c in creneaux if not c["possible"])
+    r = client.patch(
+        f"/emplois-du-temps/{edt}/lecons/{lecon['id']}",
+        json={"jour": refuse["jour"], "heure_debut": refuse["heure_debut"]},
+        headers=entetes)
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"] == refuse["motif"]
+
+    inchangee = client.get(f"/emplois-du-temps/{edt}/lecons",
+                           headers=entetes).json()
+    avant = next(a for a in inchangee if a["id"] == lecon["id"])
+    assert (avant["jour"], avant["heure_debut"]) == \
+        (lecon["jour"], lecon["heure_debut"])
+
+    # Un créneau accepté déplace effectivement la leçon.
+    libre = next(c for c in creneaux if c["possible"] and not c["actuel"])
+    r = client.patch(
+        f"/emplois-du-temps/{edt}/lecons/{lecon['id']}",
+        json={"jour": libre["jour"], "heure_debut": libre["heure_debut"]},
+        headers=entetes)
+    assert r.status_code == 200, r.text
+    assert lecon["id"] in r.json()["deplacees"]
+
+    apres = client.get(f"/emplois-du-temps/{edt}/lecons",
+                       headers=entetes).json()
+    bougee = next(a for a in apres if a["id"] == lecon["id"])
+    assert bougee["jour"] == libre["jour"]
+    assert bougee["heure_debut"] == libre["heure_debut"]
+
+    # Aucune collision n'a été introduite : à chaque créneau, une
+    # division et un enseignant ne peuvent apparaître qu'une fois — au
+    # fouj près, qui partage le créneau de sa division.
+    par_prof = {}
+    for autre in apres:
+        cle = (autre["professeur_id"], autre["jour"], autre["heure_debut"])
+        assert cle not in par_prof, f"{cle} en double"
+        par_prof[cle] = autre["id"]
+
+
+def test_deplacement_emporte_le_partenaire_de_fouj():
+    """Séparer les deux demi-groupes laisserait la moitié sans cours."""
+    entetes, matieres, classes, profs, edt = _etablissement("fouj-deplace")
+    demande = _demande(matieres, classes, profs)
+    # Deux cours d'une heure sur la même division, couplés.
+    for rang, cours in enumerate(demande["cours_requis"]):
+        if cours["classe_id"] == classes[0] and rang < 2:
+            cours["heures_par_semaine"] = 1
+            cours["nb_seances_doubles"] = 0
+            cours["couplage_id"] = "TD"
+            cours["groupe"] = f"G{rang + 1}"
+    tache_id = client.post(f"/emplois-du-temps/{edt}/generer", json=demande,
+                           headers=entetes).json()["id"]
+    tache = _attendre(entetes, edt, tache_id)
+    assert tache["statut"] == "terminee", tache["message"]
+
+    lecons = client.get(f"/emplois-du-temps/{edt}/lecons",
+                        headers=entetes).json()
+    par_creneau = {}
+    for lecon in lecons:
+        par_creneau.setdefault(
+            (lecon["classe_id"], lecon["jour"], lecon["heure_debut"]),
+            []).append(lecon)
+    paire = next(v for v in par_creneau.values() if len(v) == 2)
+
+    reponse = client.get(
+        f"/emplois-du-temps/{edt}/lecons/{paire[0]['id']}/creneaux",
+        headers=entetes).json()
+    assert sorted(reponse["groupe"]) == sorted(p["id"] for p in paire)
+
+    libre = next(c for c in reponse["creneaux"]
+                 if c["possible"] and not c["actuel"])
+    r = client.patch(
+        f"/emplois-du-temps/{edt}/lecons/{paire[0]['id']}",
+        json={"jour": libre["jour"], "heure_debut": libre["heure_debut"]},
+        headers=entetes)
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()["deplacees"]) == sorted(p["id"] for p in paire)
+
+    apres = {l["id"]: l for l in client.get(
+        f"/emplois-du-temps/{edt}/lecons", headers=entetes).json()}
+    for membre in paire:
+        assert apres[membre["id"]]["jour"] == libre["jour"]
+        assert apres[membre["id"]]["heure_debut"] == libre["heure_debut"]
+    # Et pas dans la même salle : deux demi-groupes, deux salles.
+    assert apres[paire[0]["id"]]["salle_id"] != apres[paire[1]["id"]]["salle_id"]
+
+
+def test_deplacement_refuse_une_lecon_d_une_autre_ecole():
+    entetes_a, edt_a, lecons_a = _edt_genere("deplace-a")
+    entetes_b, *_ = _etablissement("deplace-b")
+    r = client.get(
+        f"/emplois-du-temps/{edt_a}/lecons/{lecons_a[0]['id']}/creneaux",
+        headers=entetes_b)
+    assert r.status_code == 404
+
+
 def test_routes_protegees_sans_jeton():
     for methode, url in (("get", "/emplois-du-temps/"), ("get", "/professeurs/"),
                          ("get", "/classes/"), ("get", "/salles/")):

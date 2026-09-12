@@ -5,12 +5,13 @@ Routes emplois du temps + déclenchement du solveur CP-SAT.
 import json
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import List
 
 from ..config import settings
 from ..models.task import TacheGeneration
-from ..services import generation, statistiques
+from ..services import deplacement, generation, statistiques
 
 from ..database import get_db
 from ..deps import get_utilisateur_courant
@@ -123,6 +124,58 @@ def lire_statistiques(
     """
     edt = _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
     return statistiques.calculer(db, utilisateur.ecole_id, edt)
+
+
+class DeplacementInput(BaseModel):
+    jour: str
+    heure_debut: str
+
+
+@router.get("/{edt_id}/lecons/{lecon_id}/creneaux")
+def creneaux_possibles(
+    edt_id: int,
+    lecon_id: int,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """
+    Où cette leçon peut aller, et pourquoi pas ailleurs.
+
+    Balayage de la grille, sans résolution : l'interface peut éclairer
+    les cases pendant le glissement au lieu de refuser après coup.
+    """
+    edt = _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
+    try:
+        return deplacement.creneaux_possibles(
+            db, utilisateur.ecole_id, edt, lecon_id)
+    except ValueError as erreur:
+        raise HTTPException(404, str(erreur)) from erreur
+
+
+@router.patch("/{edt_id}/lecons/{lecon_id}")
+def deplacer_lecon(
+    edt_id: int,
+    lecon_id: int,
+    demande: DeplacementInput,
+    db: Session = Depends(get_db),
+    utilisateur: Utilisateur = Depends(get_utilisateur_courant),
+):
+    """
+    Déplace une leçon, et son partenaire de fouj avec elle.
+
+    Revalidé ici : l'interface a pu calculer ses cases sur un état déjà
+    périmé par la retouche d'un collègue.
+    """
+    edt = _get_edt_ou_404(edt_id, utilisateur.ecole_id, db)
+    try:
+        resultat = deplacement.deplacer(
+            db, utilisateur.ecole_id, edt, lecon_id,
+            demande.jour, demande.heure_debut)
+    except ValueError as erreur:
+        raise HTTPException(422, str(erreur)) from erreur
+    if resultat["motif"] is not None:
+        raise HTTPException(409, resultat["motif"])
+    return resultat
 
 
 # ── Contrôle des données, sans résolution ──────────────────────
