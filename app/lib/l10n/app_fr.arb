@@ -391,5 +391,6 @@
   "seancesBloquees": "Séances bloquées",
   "libelle": "Libellé",
   "aideLibelleFenetre": "Facultatif : « inspection arabe », « réunion de coordination ».",
-  "declarezDabordUneMatiere": "Déclarez d'abord une matière."
+  "declarezDabordUneMatiere": "Déclarez d'abord une matière.",
+  "adresseDejaUtilisee": "Cette adresse est déjà associée à un compte. Connectez-vous, ou utilisez-en une autre."
 }

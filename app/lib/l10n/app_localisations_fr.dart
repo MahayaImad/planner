@@ -842,4 +842,8 @@ class LFr extends L {
 
   @override
   String get declarezDabordUneMatiere => 'Déclarez d\'abord une matière.';
+
+  @override
+  String get adresseDejaUtilisee =>
+      'Cette adresse est déjà associée à un compte. Connectez-vous, ou utilisez-en une autre.';
 }

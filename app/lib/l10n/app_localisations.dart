@@ -1410,6 +1410,12 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Déclarez d\'abord une matière.'**
   String get declarezDabordUneMatiere;
+
+  /// No description provided for @adresseDejaUtilisee.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette adresse est déjà associée à un compte. Connectez-vous, ou utilisez-en une autre.'**
+  String get adresseDejaUtilisee;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

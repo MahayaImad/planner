@@ -166,6 +166,37 @@ def _attendre(entetes, edt, tache_id, delai=90):
     raise AssertionError("la tâche ne s'est jamais terminée")
 
 
+def test_inscription_en_double_est_refusee_lisiblement():
+    """
+    Se réinscrire par mégarde est banal. La contrainte d'unicité de la
+    base doit être devancée par un message clair : la laisser lever
+    produisait une erreur 500 illisible.
+    """
+    entetes, *_ = _etablissement("doublon")
+
+    # Même adresse d'établissement.
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "Autre", "email": "doublon@test.dz"},
+        "admin": {"nom": "C", "prenom": "D", "email": "neuf@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    assert r.status_code == 409, r.text
+    assert "Connectez-vous" in r.json()["detail"]
+
+    # Même adresse d'administrateur, établissement différent.
+    r = client.post("/auth/inscrire", json={
+        "ecole": {"nom": "Encore", "email": "encore@test.dz"},
+        "admin": {"nom": "C", "prenom": "D", "email": "admindoublon@test.dz",
+                  "mot_de_passe": "motdepasse-solide"}})
+    assert r.status_code == 409, r.text
+    assert "Connectez-vous" in r.json()["detail"]
+
+    # Aucun établissement fantôme n'est resté derrière l'échec.
+    assert client.post("/auth/connexion", json={
+        "email": "admindoublon@test.dz",
+        "mot_de_passe": "motdepasse-solide"}).status_code == 200
+    assert entetes is not None
+
+
 def test_profil_porte_le_nom_de_l_etablissement():
     """L'interface l'affiche en permanence : il doit venir avec le profil."""
     entetes, *_ = _etablissement("profil")

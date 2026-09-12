@@ -859,4 +859,8 @@ class LAr extends L {
 
   @override
   String get declarezDabordUneMatiere => 'صرّح أولًا بمادة.';
+
+  @override
+  String get adresseDejaUtilisee =>
+      'هذا العنوان مرتبط بحساب موجود. سجّل دخولك أو استعمل عنوانًا آخر.';
 }

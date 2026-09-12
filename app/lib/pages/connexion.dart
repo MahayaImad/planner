@@ -66,15 +66,20 @@ class _PageConnexionState extends ConsumerState<PageConnexion> {
       if (mounted) context.go('/tableau-de-bord');
     } on ErreurApi catch (erreur) {
       setState(() {
-        _erreur = erreur.reseau
-            ? l.erreurReseau
-            : (erreur.authentification || erreur.code == 400)
-                ? (erreur.message.isEmpty
-                    ? l.identifiantsInvalides
-                    : erreur.message)
-                : (erreur.message.isEmpty
-                    ? l.identifiantsInvalides
-                    : erreur.message);
+        // 409 : l'adresse est déjà prise. La phrase est écrite ici, pas
+        // reprise du serveur, pour qu'elle soit traduite comme le reste
+        // de l'interface.
+        if (erreur.reseau) {
+          _erreur = l.erreurReseau;
+        } else if (erreur.code == 409) {
+          _erreur = l.adresseDejaUtilisee;
+        } else if (erreur.authentification) {
+          _erreur = l.identifiantsInvalides;
+        } else {
+          _erreur = erreur.message.isEmpty
+              ? l.identifiantsInvalides
+              : erreur.message;
+        }
       });
     } finally {
       if (mounted) setState(() => _enCours = false);

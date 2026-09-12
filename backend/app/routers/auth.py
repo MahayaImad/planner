@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -25,9 +26,27 @@ def inscrire_ecole(body: InscrireRequest, db: Session = Depends(get_db)):
     """
     Inscrit une nouvelle école et crée le compte administrateur.
     Retourne un token JWT directement utilisable.
+
+    Les deux adresses sont vérifiées AVANT d'écrire : celle de
+    l'établissement et celle de l'administrateur portent chacune une
+    contrainte d'unicité, et laisser la base les refuser produisait une
+    erreur 500 illisible — un responsable qui se réinscrivait par
+    mégarde voyait « erreur interne » au lieu de « vous avez déjà un
+    compte ».
     """
     if db.query(Ecole).filter(Ecole.email == body.ecole.email).first():
-        raise HTTPException(status_code=400, detail="Un compte avec cet email existe déjà")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un établissement est déjà inscrit avec cette adresse. "
+                   "Connectez-vous plutôt que d'en créer un second.",
+        )
+    if db.query(Utilisateur).filter(
+            Utilisateur.email == body.admin.email).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette adresse est déjà associée à un compte. "
+                   "Connectez-vous, ou utilisez une autre adresse.",
+        )
 
     ecole = Ecole(**body.ecole.model_dump())
     db.add(ecole)
@@ -42,7 +61,18 @@ def inscrire_ecole(body: InscrireRequest, db: Session = Depends(get_db)):
         role="admin",
     )
     db.add(utilisateur)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as erreur:
+        # Deux inscriptions simultanées peuvent passer les contrôles
+        # ci-dessus puis se heurter à la contrainte : la base reste
+        # l'arbitre, mais le message doit rester lisible.
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cette adresse est déjà associée à un compte. "
+                   "Connectez-vous, ou utilisez une autre adresse.",
+        ) from erreur
     db.refresh(utilisateur)
 
     token = creer_token(ecole.id, utilisateur.id, utilisateur.email)

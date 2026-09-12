@@ -391,5 +391,6 @@
   "seancesBloquees": "الحصص الممنوعة",
   "libelle": "التسمية",
   "aideLibelleFenetre": "اختياري: «تفتيش العربية»، «اجتماع تنسيق».",
-  "declarezDabordUneMatiere": "صرّح أولًا بمادة."
+  "declarezDabordUneMatiere": "صرّح أولًا بمادة.",
+  "adresseDejaUtilisee": "هذا العنوان مرتبط بحساب موجود. سجّل دخولك أو استعمل عنوانًا آخر."
 }
