@@ -166,6 +166,14 @@ def _attendre(entetes, edt, tache_id, delai=90):
     raise AssertionError("la tâche ne s'est jamais terminée")
 
 
+def test_profil_porte_le_nom_de_l_etablissement():
+    """L'interface l'affiche en permanence : il doit venir avec le profil."""
+    entetes, *_ = _etablissement("profil")
+    profil = client.get("/auth/moi", headers=entetes).json()
+    assert profil["ecole_nom"] == "CEM profil"
+    assert profil["nom_complet"] == "B A"
+
+
 def test_routes_protegees_sans_jeton():
     for methode, url in (("get", "/emplois-du-temps/"), ("get", "/professeurs/"),
                          ("get", "/classes/"), ("get", "/salles/")):

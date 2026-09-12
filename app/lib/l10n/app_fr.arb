@@ -127,5 +127,109 @@
         "type": "String"
       }
     }
+  },
+  "nombreAttendu": "Entrez un nombre",
+  "horsBornes": "Entre {min} et {max}",
+  "aucun": "Aucun",
+  "confirmerSuppression": "Supprimer « {nom} » ?",
+  "suppressionEnCascade": "Les leçons et lignes de programme qui s'y rattachent seront supprimées.",
+  "nouvel": "Nouveau",
+  "modifierTitre": "Modifier",
+  "@horsBornes": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "@confirmerSuppression": {
+    "placeholders": {
+      "nom": {
+        "type": "String"
+      }
+    }
+  },
+  "telephone": "Téléphone",
+  "heuresConsecutivesMax": "Heures consécutives max",
+  "heuresParJourMax": "Heures par jour max",
+  "heuresParSemaineMax": "Heures par semaine max",
+  "assurePermanences": "Assure les permanences",
+  "aidePermanences": "Peut encadrer une heure d'accueil pour combler un trou.",
+  "aidePlafondHebdo": "Laissez vide s'il n'y a pas de plafond.",
+  "aideMatieresEnseignant": "Ce que cet enseignant peut prendre en charge.",
+  "aideEnseignantsVide": "Ajoutez vos enseignants, ou chargez-les d'un coup par classeur Excel.",
+  "aideMatieresVide": "Les disciplines enseignées dans l'établissement.",
+  "aideSallesVide": "Salles de classe, laboratoires, terrain de sport.",
+  "aideDivisionsVide": "Les classes de l'établissement : 1AM1, 4AM A…",
+  "aideProgrammeVide": "Qui enseigne quoi, à quelle division, combien d'heures.",
+  "coefficient": "Coefficient",
+  "coefficientValeur": "Coefficient {valeur}",
+  "typeSalleRequis": "Type de salle exigé",
+  "aideTypeSalle": "Laissez vide pour une salle ordinaire.",
+  "typeSalle": "Type",
+  "capacite": "Capacité",
+  "places": "{n, plural, =1{1 place} other{{n} places}}",
+  "niveau": "Niveau",
+  "effectif": "Effectif",
+  "eleves": "{n, plural, =1{1 élève} other{{n} élèves}}",
+  "salleAttitree": "Salle attitrée",
+  "aideSalleAttitree": "Là où la division passe ses heures ordinaires.",
+  "heuresParSemaine": "{n, plural, =1{1 h/semaine} other{{n} h/semaine}}",
+  "heuresParJour": "{n, plural, =1{1 h/jour} other{{n} h/jour}}",
+  "heuresParSemaineLibelle": "Heures par semaine",
+  "blocsDeuxHeures": "Blocs de 2 h",
+  "blocsDeDeuxHeures": "{n, plural, =1{1 bloc de 2 h} other{{n} blocs de 2 h}}",
+  "aideBlocs": "Séances doubles à réserver dans ce volume.",
+  "maxParJour": "Max par jour",
+  "fouj": "Fouj (couplage)",
+  "aideFouj": "Même libellé sur les deux lignes d'un dédoublement.",
+  "demiGroupe": "Demi-groupe",
+  "division": "Division",
+  "matiere": "Matière",
+  "enseignant": "Enseignant",
+  "@coefficientValeur": {
+    "placeholders": {
+      "valeur": {
+        "type": "String"
+      }
+    }
+  },
+  "@places": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@eleves": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@heuresParSemaine": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@heuresParJour": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@blocsDeDeuxHeures": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   }
 }

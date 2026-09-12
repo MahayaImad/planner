@@ -295,4 +295,194 @@ class LFr extends L {
   String absentsDuFichier(String feuille, String noms) {
     return '$feuille : présents en base mais absents du fichier — $noms';
   }
+
+  @override
+  String get nombreAttendu => 'Entrez un nombre';
+
+  @override
+  String horsBornes(String min, String max) {
+    return 'Entre $min et $max';
+  }
+
+  @override
+  String get aucun => 'Aucun';
+
+  @override
+  String confirmerSuppression(String nom) {
+    return 'Supprimer « $nom » ?';
+  }
+
+  @override
+  String get suppressionEnCascade =>
+      'Les leçons et lignes de programme qui s\'y rattachent seront supprimées.';
+
+  @override
+  String get nouvel => 'Nouveau';
+
+  @override
+  String get modifierTitre => 'Modifier';
+
+  @override
+  String get telephone => 'Téléphone';
+
+  @override
+  String get heuresConsecutivesMax => 'Heures consécutives max';
+
+  @override
+  String get heuresParJourMax => 'Heures par jour max';
+
+  @override
+  String get heuresParSemaineMax => 'Heures par semaine max';
+
+  @override
+  String get assurePermanences => 'Assure les permanences';
+
+  @override
+  String get aidePermanences =>
+      'Peut encadrer une heure d\'accueil pour combler un trou.';
+
+  @override
+  String get aidePlafondHebdo => 'Laissez vide s\'il n\'y a pas de plafond.';
+
+  @override
+  String get aideMatieresEnseignant =>
+      'Ce que cet enseignant peut prendre en charge.';
+
+  @override
+  String get aideEnseignantsVide =>
+      'Ajoutez vos enseignants, ou chargez-les d\'un coup par classeur Excel.';
+
+  @override
+  String get aideMatieresVide =>
+      'Les disciplines enseignées dans l\'établissement.';
+
+  @override
+  String get aideSallesVide =>
+      'Salles de classe, laboratoires, terrain de sport.';
+
+  @override
+  String get aideDivisionsVide =>
+      'Les classes de l\'établissement : 1AM1, 4AM A…';
+
+  @override
+  String get aideProgrammeVide =>
+      'Qui enseigne quoi, à quelle division, combien d\'heures.';
+
+  @override
+  String get coefficient => 'Coefficient';
+
+  @override
+  String coefficientValeur(String valeur) {
+    return 'Coefficient $valeur';
+  }
+
+  @override
+  String get typeSalleRequis => 'Type de salle exigé';
+
+  @override
+  String get aideTypeSalle => 'Laissez vide pour une salle ordinaire.';
+
+  @override
+  String get typeSalle => 'Type';
+
+  @override
+  String get capacite => 'Capacité';
+
+  @override
+  String places(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n places',
+      one: '1 place',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get niveau => 'Niveau';
+
+  @override
+  String get effectif => 'Effectif';
+
+  @override
+  String eleves(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n élèves',
+      one: '1 élève',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get salleAttitree => 'Salle attitrée';
+
+  @override
+  String get aideSalleAttitree =>
+      'Là où la division passe ses heures ordinaires.';
+
+  @override
+  String heuresParSemaine(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n h/semaine',
+      one: '1 h/semaine',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String heuresParJour(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n h/jour',
+      one: '1 h/jour',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get heuresParSemaineLibelle => 'Heures par semaine';
+
+  @override
+  String get blocsDeuxHeures => 'Blocs de 2 h';
+
+  @override
+  String blocsDeDeuxHeures(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n blocs de 2 h',
+      one: '1 bloc de 2 h',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aideBlocs => 'Séances doubles à réserver dans ce volume.';
+
+  @override
+  String get maxParJour => 'Max par jour';
+
+  @override
+  String get fouj => 'Fouj (couplage)';
+
+  @override
+  String get aideFouj => 'Même libellé sur les deux lignes d\'un dédoublement.';
+
+  @override
+  String get demiGroupe => 'Demi-groupe';
+
+  @override
+  String get division => 'Division';
+
+  @override
+  String get matiere => 'Matière';
+
+  @override
+  String get enseignant => 'Enseignant';
 }

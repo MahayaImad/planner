@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../pages/a_venir.dart';
 import '../pages/connexion.dart';
 import '../pages/donnees.dart';
+import '../pages/saisies.dart';
 import '../pages/tableau_de_bord.dart';
 import '../widgets/coquille.dart';
 import 'navigation.dart';
@@ -57,10 +58,32 @@ final routeurProvider = Provider<GoRouter>((ref) {
             path: '/donnees',
             builder: (contexte, etat) => const PageDonnees(),
           ),
+          GoRoute(
+            path: '/enseignants',
+            builder: (contexte, etat) => const PageEnseignants(),
+          ),
+          GoRoute(
+            path: '/matieres',
+            builder: (contexte, etat) => const PageMatieres(),
+          ),
+          GoRoute(
+            path: '/salles',
+            builder: (contexte, etat) => const PageSalles(),
+          ),
+          GoRoute(
+            path: '/divisions',
+            builder: (contexte, etat) => const PageDivisions(),
+          ),
+          GoRoute(
+            path: '/programme',
+            builder: (contexte, etat) => const PageProgramme(),
+          ),
           // Les écrans encore à écrire annoncent honnêtement leur état
           // plutôt que d'afficher une page blanche.
-          for (final destination in destinations.where((d) =>
-              d.chemin != '/tableau-de-bord' && d.chemin != '/donnees'))
+          for (final destination in destinations.where((d) => const [
+                '/emplois-du-temps',
+                '/reglages',
+              ].contains(d.chemin)))
             GoRoute(
               path: destination.chemin,
               builder: (contexte, etat) =>

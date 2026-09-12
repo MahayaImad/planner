@@ -67,11 +67,18 @@ def connexion(
 
 @router.get("/moi", response_model=dict)
 def profil(utilisateur: Utilisateur = Depends(get_utilisateur_courant)):
-    """Retourne le profil de l'utilisateur connecté."""
+    """
+    Profil de l'utilisateur connecté.
+
+    Le nom de l'établissement en fait partie : l'interface l'affiche en
+    permanence, et le redemander par un second appel à chaque
+    démarrage n'apporterait rien.
+    """
     return {
         "id": utilisateur.id,
         "email": utilisateur.email,
         "nom_complet": f"{utilisateur.prenom} {utilisateur.nom}",
         "role": utilisateur.role,
         "ecole_id": utilisateur.ecole_id,
+        "ecole_nom": utilisateur.ecole.nom if utilisateur.ecole else None,
     }

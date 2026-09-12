@@ -127,5 +127,109 @@
         "type": "String"
       }
     }
+  },
+  "nombreAttendu": "أدخل رقمًا",
+  "horsBornes": "بين {min} و {max}",
+  "aucun": "لا شيء",
+  "confirmerSuppression": "حذف «{nom}»؟",
+  "suppressionEnCascade": "ستُحذف معها الحصص وأسطر البرنامج المرتبطة بها.",
+  "nouvel": "جديد",
+  "modifierTitre": "تعديل",
+  "@horsBornes": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "@confirmerSuppression": {
+    "placeholders": {
+      "nom": {
+        "type": "String"
+      }
+    }
+  },
+  "telephone": "الهاتف",
+  "heuresConsecutivesMax": "أقصى ساعات متتالية",
+  "heuresParJourMax": "أقصى ساعات في اليوم",
+  "heuresParSemaineMax": "أقصى ساعات في الأسبوع",
+  "assurePermanences": "يؤمّن حصص الاستقبال",
+  "aidePermanences": "يمكنه تأطير ساعة استقبال لسدّ فراغ.",
+  "aidePlafondHebdo": "اتركه فارغًا إذا لم يكن هناك حدّ أقصى.",
+  "aideMatieresEnseignant": "ما يمكن لهذا الأستاذ تدريسه.",
+  "aideEnseignantsVide": "أضف أساتذتك، أو حمّلهم دفعة واحدة عبر ملف Excel.",
+  "aideMatieresVide": "المواد المدرّسة في المؤسسة.",
+  "aideSallesVide": "قاعات الدراسة والمخابر والملعب.",
+  "aideDivisionsVide": "أفواج المؤسسة: 1م1، 4م أ…",
+  "aideProgrammeVide": "من يدرّس ماذا، لأي فوج، وكم ساعة.",
+  "coefficient": "المعامل",
+  "coefficientValeur": "المعامل {valeur}",
+  "typeSalleRequis": "نوع القاعة المطلوب",
+  "aideTypeSalle": "اتركه فارغًا لقاعة عادية.",
+  "typeSalle": "النوع",
+  "capacite": "السعة",
+  "places": "{n, plural, =1{مقعد واحد} =2{مقعدان} few{{n} مقاعد} many{{n} مقعدًا} other{{n} مقعد}}",
+  "niveau": "المستوى",
+  "effectif": "عدد التلاميذ",
+  "eleves": "{n, plural, =1{تلميذ واحد} =2{تلميذان} few{{n} تلاميذ} many{{n} تلميذًا} other{{n} تلميذ}}",
+  "salleAttitree": "القاعة المخصّصة",
+  "aideSalleAttitree": "حيث يقضي الفوج ساعاته العادية.",
+  "heuresParSemaine": "{n, plural, =1{ساعة/أسبوع} =2{ساعتان/أسبوع} few{{n} ساعات/أسبوع} many{{n} ساعة/أسبوع} other{{n} ساعة/أسبوع}}",
+  "heuresParJour": "{n, plural, =1{ساعة/يوم} =2{ساعتان/يوم} few{{n} ساعات/يوم} many{{n} ساعة/يوم} other{{n} ساعة/يوم}}",
+  "heuresParSemaineLibelle": "ساعات في الأسبوع",
+  "blocsDeuxHeures": "حصص مزدوجة",
+  "blocsDeDeuxHeures": "{n, plural, =1{حصة مزدوجة واحدة} =2{حصتان مزدوجتان} few{{n} حصص مزدوجة} many{{n} حصة مزدوجة} other{{n} حصة مزدوجة}}",
+  "aideBlocs": "الحصص المزدوجة المطلوب حجزها ضمن هذا الحجم.",
+  "maxParJour": "الحدّ الأقصى في اليوم",
+  "fouj": "الفوج (الازدواج)",
+  "aideFouj": "نفس التسمية على سطري الازدواج.",
+  "demiGroupe": "نصف الفوج",
+  "division": "الفوج",
+  "matiere": "المادة",
+  "enseignant": "الأستاذ",
+  "@coefficientValeur": {
+    "placeholders": {
+      "valeur": {
+        "type": "String"
+      }
+    }
+  },
+  "@places": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@eleves": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@heuresParSemaine": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@heuresParJour": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "@blocsDeDeuxHeures": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
   }
 }

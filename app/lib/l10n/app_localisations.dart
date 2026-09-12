@@ -552,6 +552,276 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'{feuille} : présents en base mais absents du fichier — {noms}'**
   String absentsDuFichier(String feuille, String noms);
+
+  /// No description provided for @nombreAttendu.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez un nombre'**
+  String get nombreAttendu;
+
+  /// No description provided for @horsBornes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entre {min} et {max}'**
+  String horsBornes(String min, String max);
+
+  /// No description provided for @aucun.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun'**
+  String get aucun;
+
+  /// No description provided for @confirmerSuppression.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer « {nom} » ?'**
+  String confirmerSuppression(String nom);
+
+  /// No description provided for @suppressionEnCascade.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les leçons et lignes de programme qui s\'y rattachent seront supprimées.'**
+  String get suppressionEnCascade;
+
+  /// No description provided for @nouvel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau'**
+  String get nouvel;
+
+  /// No description provided for @modifierTitre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier'**
+  String get modifierTitre;
+
+  /// No description provided for @telephone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléphone'**
+  String get telephone;
+
+  /// No description provided for @heuresConsecutivesMax.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures consécutives max'**
+  String get heuresConsecutivesMax;
+
+  /// No description provided for @heuresParJourMax.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures par jour max'**
+  String get heuresParJourMax;
+
+  /// No description provided for @heuresParSemaineMax.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures par semaine max'**
+  String get heuresParSemaineMax;
+
+  /// No description provided for @assurePermanences.
+  ///
+  /// In fr, this message translates to:
+  /// **'Assure les permanences'**
+  String get assurePermanences;
+
+  /// No description provided for @aidePermanences.
+  ///
+  /// In fr, this message translates to:
+  /// **'Peut encadrer une heure d\'accueil pour combler un trou.'**
+  String get aidePermanences;
+
+  /// No description provided for @aidePlafondHebdo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Laissez vide s\'il n\'y a pas de plafond.'**
+  String get aidePlafondHebdo;
+
+  /// No description provided for @aideMatieresEnseignant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce que cet enseignant peut prendre en charge.'**
+  String get aideMatieresEnseignant;
+
+  /// No description provided for @aideEnseignantsVide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajoutez vos enseignants, ou chargez-les d\'un coup par classeur Excel.'**
+  String get aideEnseignantsVide;
+
+  /// No description provided for @aideMatieresVide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les disciplines enseignées dans l\'établissement.'**
+  String get aideMatieresVide;
+
+  /// No description provided for @aideSallesVide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Salles de classe, laboratoires, terrain de sport.'**
+  String get aideSallesVide;
+
+  /// No description provided for @aideDivisionsVide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les classes de l\'établissement : 1AM1, 4AM A…'**
+  String get aideDivisionsVide;
+
+  /// No description provided for @aideProgrammeVide.
+  ///
+  /// In fr, this message translates to:
+  /// **'Qui enseigne quoi, à quelle division, combien d\'heures.'**
+  String get aideProgrammeVide;
+
+  /// No description provided for @coefficient.
+  ///
+  /// In fr, this message translates to:
+  /// **'Coefficient'**
+  String get coefficient;
+
+  /// No description provided for @coefficientValeur.
+  ///
+  /// In fr, this message translates to:
+  /// **'Coefficient {valeur}'**
+  String coefficientValeur(String valeur);
+
+  /// No description provided for @typeSalleRequis.
+  ///
+  /// In fr, this message translates to:
+  /// **'Type de salle exigé'**
+  String get typeSalleRequis;
+
+  /// No description provided for @aideTypeSalle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Laissez vide pour une salle ordinaire.'**
+  String get aideTypeSalle;
+
+  /// No description provided for @typeSalle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Type'**
+  String get typeSalle;
+
+  /// No description provided for @capacite.
+  ///
+  /// In fr, this message translates to:
+  /// **'Capacité'**
+  String get capacite;
+
+  /// No description provided for @places.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 place} other{{n} places}}'**
+  String places(int n);
+
+  /// No description provided for @niveau.
+  ///
+  /// In fr, this message translates to:
+  /// **'Niveau'**
+  String get niveau;
+
+  /// No description provided for @effectif.
+  ///
+  /// In fr, this message translates to:
+  /// **'Effectif'**
+  String get effectif;
+
+  /// No description provided for @eleves.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 élève} other{{n} élèves}}'**
+  String eleves(int n);
+
+  /// No description provided for @salleAttitree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Salle attitrée'**
+  String get salleAttitree;
+
+  /// No description provided for @aideSalleAttitree.
+  ///
+  /// In fr, this message translates to:
+  /// **'Là où la division passe ses heures ordinaires.'**
+  String get aideSalleAttitree;
+
+  /// No description provided for @heuresParSemaine.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 h/semaine} other{{n} h/semaine}}'**
+  String heuresParSemaine(int n);
+
+  /// No description provided for @heuresParJour.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 h/jour} other{{n} h/jour}}'**
+  String heuresParJour(int n);
+
+  /// No description provided for @heuresParSemaineLibelle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Heures par semaine'**
+  String get heuresParSemaineLibelle;
+
+  /// No description provided for @blocsDeuxHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'Blocs de 2 h'**
+  String get blocsDeuxHeures;
+
+  /// No description provided for @blocsDeDeuxHeures.
+  ///
+  /// In fr, this message translates to:
+  /// **'{n, plural, =1{1 bloc de 2 h} other{{n} blocs de 2 h}}'**
+  String blocsDeDeuxHeures(int n);
+
+  /// No description provided for @aideBlocs.
+  ///
+  /// In fr, this message translates to:
+  /// **'Séances doubles à réserver dans ce volume.'**
+  String get aideBlocs;
+
+  /// No description provided for @maxParJour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Max par jour'**
+  String get maxParJour;
+
+  /// No description provided for @fouj.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fouj (couplage)'**
+  String get fouj;
+
+  /// No description provided for @aideFouj.
+  ///
+  /// In fr, this message translates to:
+  /// **'Même libellé sur les deux lignes d\'un dédoublement.'**
+  String get aideFouj;
+
+  /// No description provided for @demiGroupe.
+  ///
+  /// In fr, this message translates to:
+  /// **'Demi-groupe'**
+  String get demiGroupe;
+
+  /// No description provided for @division.
+  ///
+  /// In fr, this message translates to:
+  /// **'Division'**
+  String get division;
+
+  /// No description provided for @matiere.
+  ///
+  /// In fr, this message translates to:
+  /// **'Matière'**
+  String get matiere;
+
+  /// No description provided for @enseignant.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enseignant'**
+  String get enseignant;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

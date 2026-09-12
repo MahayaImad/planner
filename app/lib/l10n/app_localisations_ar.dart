@@ -309,4 +309,202 @@ class LAr extends L {
   String absentsDuFichier(String feuille, String noms) {
     return '$feuille: موجودة في قاعدة البيانات وغير موجودة في الملف — $noms';
   }
+
+  @override
+  String get nombreAttendu => 'أدخل رقمًا';
+
+  @override
+  String horsBornes(String min, String max) {
+    return 'بين $min و $max';
+  }
+
+  @override
+  String get aucun => 'لا شيء';
+
+  @override
+  String confirmerSuppression(String nom) {
+    return 'حذف «$nom»؟';
+  }
+
+  @override
+  String get suppressionEnCascade =>
+      'ستُحذف معها الحصص وأسطر البرنامج المرتبطة بها.';
+
+  @override
+  String get nouvel => 'جديد';
+
+  @override
+  String get modifierTitre => 'تعديل';
+
+  @override
+  String get telephone => 'الهاتف';
+
+  @override
+  String get heuresConsecutivesMax => 'أقصى ساعات متتالية';
+
+  @override
+  String get heuresParJourMax => 'أقصى ساعات في اليوم';
+
+  @override
+  String get heuresParSemaineMax => 'أقصى ساعات في الأسبوع';
+
+  @override
+  String get assurePermanences => 'يؤمّن حصص الاستقبال';
+
+  @override
+  String get aidePermanences => 'يمكنه تأطير ساعة استقبال لسدّ فراغ.';
+
+  @override
+  String get aidePlafondHebdo => 'اتركه فارغًا إذا لم يكن هناك حدّ أقصى.';
+
+  @override
+  String get aideMatieresEnseignant => 'ما يمكن لهذا الأستاذ تدريسه.';
+
+  @override
+  String get aideEnseignantsVide =>
+      'أضف أساتذتك، أو حمّلهم دفعة واحدة عبر ملف Excel.';
+
+  @override
+  String get aideMatieresVide => 'المواد المدرّسة في المؤسسة.';
+
+  @override
+  String get aideSallesVide => 'قاعات الدراسة والمخابر والملعب.';
+
+  @override
+  String get aideDivisionsVide => 'أفواج المؤسسة: 1م1، 4م أ…';
+
+  @override
+  String get aideProgrammeVide => 'من يدرّس ماذا، لأي فوج، وكم ساعة.';
+
+  @override
+  String get coefficient => 'المعامل';
+
+  @override
+  String coefficientValeur(String valeur) {
+    return 'المعامل $valeur';
+  }
+
+  @override
+  String get typeSalleRequis => 'نوع القاعة المطلوب';
+
+  @override
+  String get aideTypeSalle => 'اتركه فارغًا لقاعة عادية.';
+
+  @override
+  String get typeSalle => 'النوع';
+
+  @override
+  String get capacite => 'السعة';
+
+  @override
+  String places(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n مقعد',
+      many: '$n مقعدًا',
+      few: '$n مقاعد',
+      two: 'مقعدان',
+      one: 'مقعد واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get niveau => 'المستوى';
+
+  @override
+  String get effectif => 'عدد التلاميذ';
+
+  @override
+  String eleves(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n تلميذ',
+      many: '$n تلميذًا',
+      few: '$n تلاميذ',
+      two: 'تلميذان',
+      one: 'تلميذ واحد',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get salleAttitree => 'القاعة المخصّصة';
+
+  @override
+  String get aideSalleAttitree => 'حيث يقضي الفوج ساعاته العادية.';
+
+  @override
+  String heuresParSemaine(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n ساعة/أسبوع',
+      many: '$n ساعة/أسبوع',
+      few: '$n ساعات/أسبوع',
+      two: 'ساعتان/أسبوع',
+      one: 'ساعة/أسبوع',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String heuresParJour(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n ساعة/يوم',
+      many: '$n ساعة/يوم',
+      few: '$n ساعات/يوم',
+      two: 'ساعتان/يوم',
+      one: 'ساعة/يوم',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get heuresParSemaineLibelle => 'ساعات في الأسبوع';
+
+  @override
+  String get blocsDeuxHeures => 'حصص مزدوجة';
+
+  @override
+  String blocsDeDeuxHeures(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n حصة مزدوجة',
+      many: '$n حصة مزدوجة',
+      few: '$n حصص مزدوجة',
+      two: 'حصتان مزدوجتان',
+      one: 'حصة مزدوجة واحدة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get aideBlocs => 'الحصص المزدوجة المطلوب حجزها ضمن هذا الحجم.';
+
+  @override
+  String get maxParJour => 'الحدّ الأقصى في اليوم';
+
+  @override
+  String get fouj => 'الفوج (الازدواج)';
+
+  @override
+  String get aideFouj => 'نفس التسمية على سطري الازدواج.';
+
+  @override
+  String get demiGroupe => 'نصف الفوج';
+
+  @override
+  String get division => 'الفوج';
+
+  @override
+  String get matiere => 'المادة';
+
+  @override
+  String get enseignant => 'الأستاذ';
 }
