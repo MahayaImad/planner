@@ -15,8 +15,14 @@ sans jamais pouvoir produire une grille impossible.
 ## Démarrer
 
 ```bash
-docker compose up --build
+docker compose up -d --build --remove-orphans
 ```
+
+`--remove-orphans` supprime les conteneurs dont le service a disparu du
+fichier Compose. Il n'est indispensable qu'une fois, en venant d'une
+version antérieure : le conteneur du frontend React survivait à la
+suppression de son service et retenait le port 5173, ce qui empêchait
+la nouvelle interface de démarrer.
 
 - l'interface sur <http://localhost:5173>
 - l'API et sa documentation sur <http://localhost:8000/docs>
