@@ -20,11 +20,17 @@ RUN curl -sSL -o /tmp/flutter.tar.xz \
     && rm /tmp/flutter.tar.xz \
     && git config --global --add safe.directory /opt/flutter
 ENV PATH="/opt/flutter/bin:${PATH}"
+# Sans cela, chaque commande tente de joindre Google Analytics et
+# noircit le journal de compilation d'un paragraphe sur la vie privée.
+ENV FLUTTER_SUPPRESS_ANALYTICS=true
 
 WORKDIR /source
 # Les dépendances d'abord : une modification du code ne refait pas
-# cette étape.
+# cette étape. Les traductions viennent AVEC, parce que « pub get »
+# génère le code de localisation et échoue si lib/l10n n'existe pas
+# encore — c'est ce qui cassait la construction.
 COPY pubspec.yaml pubspec.lock l10n.yaml ./
+COPY lib/l10n ./lib/l10n
 RUN flutter pub get
 
 COPY . .

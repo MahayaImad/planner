@@ -32,8 +32,10 @@ services:
       # En production, retirer DEBUG et fournir une vraie clé :
       #   SECRET_KEY: ${SECRET_KEY:?definir SECRET_KEY dans .env}
       DEBUG: "true"
-      # L'application Flutter est servie par le service « web ».
-      CORS_ORIGINS: http://localhost:8080
+      # L'application Flutter est servie par le service « web », sur le
+      # port qu'occupait le frontend React : les déploiements et les
+      # règles de pare-feu déjà en place restent valables.
+      CORS_ORIGINS: http://localhost:5173
       GENERATIONS_SIMULTANEES: "2"
       SOLVEUR_THREADS: "8"
     ports:
@@ -60,7 +62,7 @@ services:
     depends_on:
       - api
     ports:
-      - "8080:80"
+      - "5173:80"
 
 volumes:
   postgres_data:

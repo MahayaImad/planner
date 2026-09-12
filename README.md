@@ -18,7 +18,7 @@ sans jamais pouvoir produire une grille impossible.
 docker compose up --build
 ```
 
-- l'interface sur <http://localhost:8080>
+- l'interface sur <http://localhost:5173>
 - l'API et sa documentation sur <http://localhost:8000/docs>
 
 Créez un établissement depuis l'écran de connexion, puis chargez vos
