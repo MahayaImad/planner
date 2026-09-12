@@ -392,5 +392,8 @@
   "libelle": "التسمية",
   "aideLibelleFenetre": "اختياري: «تفتيش العربية»، «اجتماع تنسيق».",
   "declarezDabordUneMatiere": "صرّح أولًا بمادة.",
-  "adresseDejaUtilisee": "هذا العنوان مرتبط بحساب موجود. سجّل دخولك أو استعمل عنوانًا آخر."
+  "adresseDejaUtilisee": "هذا العنوان مرتبط بحساب موجود. سجّل دخولك أو استعمل عنوانًا آخر.",
+  "creerEmploiDuTemps": "إنشاء جدول توقيت",
+  "creer": "إنشاء",
+  "semaineType": "الأسبوع النموذجي"
 }

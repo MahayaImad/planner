@@ -1416,6 +1416,24 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Cette adresse est déjà associée à un compte. Connectez-vous, ou utilisez-en une autre.'**
   String get adresseDejaUtilisee;
+
+  /// No description provided for @creerEmploiDuTemps.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer un emploi du temps'**
+  String get creerEmploiDuTemps;
+
+  /// No description provided for @creer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Créer'**
+  String get creer;
+
+  /// No description provided for @semaineType.
+  ///
+  /// In fr, this message translates to:
+  /// **'Semaine type'**
+  String get semaineType;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

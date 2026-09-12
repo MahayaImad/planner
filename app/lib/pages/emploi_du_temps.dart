@@ -96,6 +96,68 @@ class _PageEmploiDuTempsState extends ConsumerState<PageEmploiDuTemps> {
         _ => code,
       };
 
+  /// Crée un emploi du temps, puis propose aussitôt de le générer :
+  /// personne ne crée une semaine vide pour le plaisir.
+  Future<void> _creerEmploiDuTemps() async {
+    final l = context.l10n;
+    final nom = await _demanderNom(context, l);
+    if (nom == null) return;
+    setState(() => _enCours = true);
+    try {
+      final cree = await ref.read(apiProvider).post('/emplois-du-temps/',
+          corps: {'nom': nom, 'annee_scolaire': _anneeScolaire()})
+          as Map<String, dynamic>;
+      _edtId = cree['id'] as int;
+      ref.invalidate(listeEdtProvider);
+      if (mounted) await _genererProposition();
+    } on ErreurApi catch (erreur) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: Jetons.danger,
+          content: Text(erreur.reseau ? l.erreurReseau : erreur.message),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  /// « 2025-2026 » à partir de la date du jour : l'année scolaire
+  /// commence en septembre.
+  String _anneeScolaire() {
+    final maintenant = DateTime.now();
+    final debut = maintenant.month >= 9 ? maintenant.year : maintenant.year - 1;
+    return '$debut-${debut + 1}';
+  }
+
+  Future<String?> _demanderNom(BuildContext contexte, L l) {
+    final controleur = TextEditingController(text: l.semaineType);
+    return showDialog<String>(
+      context: contexte,
+      builder: (dialogue) => AlertDialog(
+        title: Text(l.creerEmploiDuTemps),
+        content: TextField(
+          controller: controleur,
+          autofocus: true,
+          decoration: InputDecoration(labelText: l.nom),
+          onSubmitted: (valeur) =>
+              Navigator.of(dialogue).pop(valeur.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogue).pop(),
+            child: Text(l.annuler),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogue).pop(controleur.text.trim()),
+            child: Text(l.creer),
+          ),
+        ],
+      ),
+    ).then((valeur) => (valeur == null || valeur.isEmpty) ? null : valeur);
+  }
+
   Future<void> _genererProposition() async {
     final relancer = await showDialog<bool>(
       context: context,
@@ -121,6 +183,9 @@ class _PageEmploiDuTempsState extends ConsumerState<PageEmploiDuTemps> {
             erreur: erreur, onReessayer: () => ref.invalidate(listeEdtProvider)),
       ),
       data: (emplois) {
+        // Sans emploi du temps, l'écran n'offrait aucune action : le
+        // responsable arrivait sur un cul-de-sac, sans moyen d'en
+        // créer un ni de lancer la moindre génération.
         if (emplois.isEmpty) {
           return Scaffold(
             appBar: AppBar(title: Text(l.emploisDuTemps)),
@@ -128,6 +193,11 @@ class _PageEmploiDuTempsState extends ConsumerState<PageEmploiDuTemps> {
               icone: Icons.calendar_month_outlined,
               titre: l.aucunEmploiDuTemps,
               aide: l.aideAucunEmploiDuTemps,
+              action: FilledButton.icon(
+                onPressed: _enCours ? null : _creerEmploiDuTemps,
+                icon: const Icon(Icons.add),
+                label: Text(l.creerEmploiDuTemps),
+              ),
             ),
           );
         }
@@ -146,6 +216,26 @@ class _PageEmploiDuTempsState extends ConsumerState<PageEmploiDuTemps> {
       appBar: AppBar(
         title: Text(l.emploisDuTemps),
         actions: [
+          if (emplois.length > 1)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Jetons.s),
+              child: DropdownButton<int>(
+                value: _edtId,
+                underline: const SizedBox.shrink(),
+                items: [
+                  for (final emploi in emplois)
+                    DropdownMenuItem(
+                        value: emploi['id'] as int,
+                        child: Text('${emploi['nom']}')),
+                ],
+                onChanged: (valeur) => setState(() => _edtId = valeur),
+              ),
+            ),
+          IconButton(
+            tooltip: l.creerEmploiDuTemps,
+            onPressed: _enCours ? null : _creerEmploiDuTemps,
+            icon: const Icon(Icons.add),
+          ),
           IconButton(
             tooltip: l.statistiques,
             onPressed: () =>

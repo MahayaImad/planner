@@ -863,4 +863,13 @@ class LAr extends L {
   @override
   String get adresseDejaUtilisee =>
       'هذا العنوان مرتبط بحساب موجود. سجّل دخولك أو استعمل عنوانًا آخر.';
+
+  @override
+  String get creerEmploiDuTemps => 'إنشاء جدول توقيت';
+
+  @override
+  String get creer => 'إنشاء';
+
+  @override
+  String get semaineType => 'الأسبوع النموذجي';
 }

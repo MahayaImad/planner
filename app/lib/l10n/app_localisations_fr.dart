@@ -846,4 +846,13 @@ class LFr extends L {
   @override
   String get adresseDejaUtilisee =>
       'Cette adresse est déjà associée à un compte. Connectez-vous, ou utilisez-en une autre.';
+
+  @override
+  String get creerEmploiDuTemps => 'Créer un emploi du temps';
+
+  @override
+  String get creer => 'Créer';
+
+  @override
+  String get semaineType => 'Semaine type';
 }
