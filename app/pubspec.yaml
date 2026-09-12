@@ -1,0 +1,42 @@
+name: planner
+description: >-
+  Emplois du temps des collèges et lycées algériens. Une seule base de
+  code pour le web et le mobile.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # Gestion d'état : Riverpod sans génération de code, pour rester
+  # lisible par quelqu'un qui découvre le projet.
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.6.2
+  http: ^1.2.2
+  intl: any
+  shared_preferences: ^2.3.3
+  file_selector: ^1.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
+  # Cairo couvre le latin ET l'arabe. Embarquée plutôt que chargée
+  # depuis Google Fonts : une école mal connectée doit voir la même
+  # interface qu'un bureau en fibre, et l'application démarre sans
+  # réseau.
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/polices/Cairo.ttf
+  assets:
+    - assets/polices/Cairo-OFL.txt

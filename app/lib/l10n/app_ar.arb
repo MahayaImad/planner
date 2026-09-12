@@ -1,0 +1,131 @@
+{
+  "@@locale": "ar",
+  "appNom": "بلانر",
+  "appSousTitre": "جداول التوقيت لمتوسطات وثانويات الجزائر",
+  "langue": "اللغة",
+  "francais": "Français",
+  "arabe": "العربية",
+  "connexion": "تسجيل الدخول",
+  "connexionTitre": "سجّل دخولك",
+  "connexionSousTitre": "ادخل إلى فضاء مؤسستك.",
+  "email": "البريد الإلكتروني",
+  "motDePasse": "كلمة المرور",
+  "seConnecter": "تسجيل الدخول",
+  "creerUnCompte": "إنشاء مؤسسة",
+  "inscriptionTitre": "إنشاء مؤسسة",
+  "inscriptionSousTitre": "معلومات قليلة تكفي للانطلاق.",
+  "nomEtablissement": "اسم المؤسسة",
+  "emailEtablissement": "البريد الإلكتروني للمؤسسة",
+  "nom": "اللقب",
+  "prenom": "الاسم",
+  "sInscrire": "إنشاء المؤسسة",
+  "dejaUnCompte": "لديك حساب بالفعل؟",
+  "seDeconnecter": "تسجيل الخروج",
+  "champObligatoire": "هذا الحقل إجباري",
+  "emailInvalide": "بريد إلكتروني غير صالح",
+  "motDePasseCourt": "12 حرفًا على الأقل",
+  "identifiantsInvalides": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+  "erreurReseau": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك.",
+  "tableauDeBord": "لوحة القيادة",
+  "enseignants": "الأساتذة",
+  "matieres": "المواد",
+  "salles": "القاعات",
+  "divisions": "الأفواج",
+  "programme": "البرنامج",
+  "emploisDuTemps": "جداول التوقيت",
+  "statistiques": "الإحصائيات",
+  "reglages": "الإعدادات",
+  "donnees": "البيانات",
+  "chargement": "جارٍ التحميل…",
+  "reessayer": "إعادة المحاولة",
+  "aucuneDonnee": "لا توجد بيانات بعد",
+  "enregistrer": "حفظ",
+  "annuler": "إلغاء",
+  "supprimer": "حذف",
+  "modifier": "تعديل",
+  "ajouter": "إضافة",
+  "rechercher": "بحث",
+  "fermer": "إغلاق",
+  "resumeEtablissement": "مؤسستك",
+  "nbEnseignants": "{n, plural, =0{لا يوجد أستاذ} =1{أستاذ واحد} =2{أستاذان} few{{n} أساتذة} many{{n} أستاذًا} other{{n} أستاذ}}",
+  "@nbEnseignants": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbDivisions": "{n, plural, =0{لا يوجد فوج} =1{فوج واحد} =2{فوجان} few{{n} أفواج} many{{n} فوجًا} other{{n} فوج}}",
+  "@nbDivisions": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbMatieres": "{n, plural, =0{لا توجد مادة} =1{مادة واحدة} =2{مادتان} few{{n} مواد} many{{n} مادة} other{{n} مادة}}",
+  "@nbMatieres": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbSalles": "{n, plural, =0{لا توجد قاعة} =1{قاعة واحدة} =2{قاعتان} few{{n} قاعات} many{{n} قاعة} other{{n} قاعة}}",
+  "@nbSalles": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbLignesProgramme": "{n, plural, =0{البرنامج فارغ} =1{سطر واحد} =2{سطران} few{{n} أسطر} many{{n} سطرًا} other{{n} سطر}}",
+  "@nbLignesProgramme": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "commencerIci": "من أين تبدأ",
+  "etapeDonnees": "حمّل بياناتك",
+  "etapeDonneesAide": "نزّل ملف Excel، املأه، ثم ارفعه.",
+  "etapeProgramme": "تحقّق من البرنامج",
+  "etapeProgrammeAide": "من يدرّس ماذا، لأي فوج، وكم ساعة.",
+  "etapeGenerer": "أنشئ جدول التوقيت",
+  "etapeGenererAide": "ثم عدّل يدويًا ما يحتاج إلى تعديل.",
+  "classeurTitre": "ملف Excel",
+  "classeurAide": "املأ جدولًا بدل عشرات الشاشات.",
+  "telechargerModele": "تنزيل النموذج",
+  "exporterDonnees": "تصدير بياناتي",
+  "importerClasseur": "رفع ملف",
+  "verifierSansEcrire": "التحقّق دون الحفظ",
+  "importReussi": "{n, plural, =1{تم استيراد سطر واحد} =2{تم استيراد سطرين} few{تم استيراد {n} أسطر} many{تم استيراد {n} سطرًا} other{تم استيراد {n} سطر}}",
+  "@importReussi": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "importRefuse": "تم رفض الاستيراد: لم يُكتب أي شيء.",
+  "plus": "المزيد",
+  "ecranAVenir": "هذه الشاشة قيد الإنجاز.",
+  "fichierEnregistre": "تم حفظ الملف.",
+  "importApplique": "تم تطبيق الاستيراد.",
+  "importValide": "الملف صالح. لم يُكتب أي شيء.",
+  "feuille": "الورقة",
+  "creees": "المُنشأة",
+  "misesAJour": "المُحدّثة",
+  "absentsDuFichier": "{feuille}: موجودة في قاعدة البيانات وغير موجودة في الملف — {noms}",
+  "@absentsDuFichier": {
+    "placeholders": {
+      "feuille": {
+        "type": "String"
+      },
+      "noms": {
+        "type": "String"
+      }
+    }
+  }
+}

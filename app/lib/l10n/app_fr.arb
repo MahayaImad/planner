@@ -1,0 +1,131 @@
+{
+  "@@locale": "fr",
+  "appNom": "Planner",
+  "appSousTitre": "Emplois du temps des CEM et lycées",
+  "langue": "Langue",
+  "francais": "Français",
+  "arabe": "العربية",
+  "connexion": "Connexion",
+  "connexionTitre": "Connectez-vous",
+  "connexionSousTitre": "Accédez à l'espace de votre établissement.",
+  "email": "Adresse e-mail",
+  "motDePasse": "Mot de passe",
+  "seConnecter": "Se connecter",
+  "creerUnCompte": "Créer un établissement",
+  "inscriptionTitre": "Créer un établissement",
+  "inscriptionSousTitre": "Quelques informations suffisent pour démarrer.",
+  "nomEtablissement": "Nom de l'établissement",
+  "emailEtablissement": "E-mail de l'établissement",
+  "nom": "Nom",
+  "prenom": "Prénom",
+  "sInscrire": "Créer l'établissement",
+  "dejaUnCompte": "Vous avez déjà un compte ?",
+  "seDeconnecter": "Se déconnecter",
+  "champObligatoire": "Ce champ est obligatoire",
+  "emailInvalide": "Adresse e-mail invalide",
+  "motDePasseCourt": "Au moins 12 caractères",
+  "identifiantsInvalides": "E-mail ou mot de passe incorrect",
+  "erreurReseau": "Serveur injoignable. Vérifiez votre connexion.",
+  "tableauDeBord": "Tableau de bord",
+  "enseignants": "Enseignants",
+  "matieres": "Matières",
+  "salles": "Salles",
+  "divisions": "Divisions",
+  "programme": "Programme",
+  "emploisDuTemps": "Emplois du temps",
+  "statistiques": "Statistiques",
+  "reglages": "Réglages",
+  "donnees": "Données",
+  "chargement": "Chargement…",
+  "reessayer": "Réessayer",
+  "aucuneDonnee": "Aucune donnée pour le moment",
+  "enregistrer": "Enregistrer",
+  "annuler": "Annuler",
+  "supprimer": "Supprimer",
+  "modifier": "Modifier",
+  "ajouter": "Ajouter",
+  "rechercher": "Rechercher",
+  "fermer": "Fermer",
+  "resumeEtablissement": "Votre établissement",
+  "nbEnseignants": "{n, plural, =0{Aucun enseignant} =1{1 enseignant} other{{n} enseignants}}",
+  "@nbEnseignants": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbDivisions": "{n, plural, =0{Aucune division} =1{1 division} other{{n} divisions}}",
+  "@nbDivisions": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbMatieres": "{n, plural, =0{Aucune matière} =1{1 matière} other{{n} matières}}",
+  "@nbMatieres": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbSalles": "{n, plural, =0{Aucune salle} =1{1 salle} other{{n} salles}}",
+  "@nbSalles": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "nbLignesProgramme": "{n, plural, =0{Programme vide} =1{1 ligne} other{{n} lignes}}",
+  "@nbLignesProgramme": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "commencerIci": "Par où commencer",
+  "etapeDonnees": "Chargez vos données",
+  "etapeDonneesAide": "Téléchargez le classeur Excel, remplissez-le, téléversez-le.",
+  "etapeProgramme": "Vérifiez le programme",
+  "etapeProgrammeAide": "Qui enseigne quoi, à quelle division, combien d'heures.",
+  "etapeGenerer": "Générez l'emploi du temps",
+  "etapeGenererAide": "Puis ajustez à la main ce qui doit l'être.",
+  "classeurTitre": "Classeur Excel",
+  "classeurAide": "Remplissez un tableur plutôt que des dizaines d'écrans.",
+  "telechargerModele": "Télécharger le modèle",
+  "exporterDonnees": "Exporter mes données",
+  "importerClasseur": "Téléverser un classeur",
+  "verifierSansEcrire": "Vérifier sans rien écrire",
+  "importReussi": "{n, plural, =1{1 ligne importée} other{{n} lignes importées}}",
+  "@importReussi": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "importRefuse": "Import refusé : rien n'a été écrit.",
+  "plus": "Plus",
+  "ecranAVenir": "Cet écran arrive bientôt.",
+  "fichierEnregistre": "Fichier enregistré.",
+  "importApplique": "Import appliqué.",
+  "importValide": "Fichier valide. Rien n'a été écrit.",
+  "feuille": "Feuille",
+  "creees": "Créées",
+  "misesAJour": "Mises à jour",
+  "absentsDuFichier": "{feuille} : présents en base mais absents du fichier — {noms}",
+  "@absentsDuFichier": {
+    "placeholders": {
+      "feuille": {
+        "type": "String"
+      },
+      "noms": {
+        "type": "String"
+      }
+    }
+  }
+}
