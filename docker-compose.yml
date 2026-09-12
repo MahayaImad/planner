@@ -32,12 +32,15 @@ services:
       # En production, retirer DEBUG et fournir une vraie clé :
       #   SECRET_KEY: ${SECRET_KEY:?definir SECRET_KEY dans .env}
       DEBUG: "true"
-      # L'application Flutter est servie par le service « web », sur le
-      # port qu'occupait le frontend React : les déploiements et les
-      # règles de pare-feu déjà en place restent valables.
-      CORS_ORIGINS: http://localhost:5173
+      # Le navigateur joint l'API par le même hôte que l'interface, via
+      # le relais nginx : l'origine est donc toujours celle du service
+      # « web ». Aucune adresse publique à renseigner ici.
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       GENERATIONS_SIMULTANEES: "2"
       SOLVEUR_THREADS: "8"
+    # Publié pour consulter /docs pendant le développement. En
+    # production, cette ligne peut disparaître : l'interface joint
+    # l'API par le relais nginx, sur le réseau interne de Compose.
     ports:
       - "8000:8000"
     volumes:
@@ -55,9 +58,10 @@ services:
     build:
       context: ./app
       args:
-        # Adresse à laquelle le NAVIGATEUR joindra l'API — pas le nom du
-        # service Docker, que le navigateur ne sait pas résoudre.
-        API_BASE: http://localhost:8000
+        # Chemin relatif : l'application appelle « /api », que nginx
+        # relaie vers le service api. Rien à changer d'un serveur à
+        # l'autre, et une seule image pour tous les déploiements.
+        API_BASE: /api
     restart: unless-stopped
     depends_on:
       - api

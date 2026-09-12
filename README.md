@@ -27,6 +27,11 @@ la nouvelle interface de démarrer.
 - l'interface sur <http://localhost:5173>
 - l'API et sa documentation sur <http://localhost:8000/docs>
 
+Sur un serveur distant, remplacez `localhost` par son adresse : **rien
+d'autre à changer**. L'interface joint l'API par `/api`, que nginx
+relaie en interne, donc aucune adresse publique n'est inscrite dans
+l'image. La même image sert tous les déploiements.
+
 Créez un établissement depuis l'écran de connexion, puis chargez vos
 données par classeur Excel (écran **Données**) — ou d'un clic avec le
 jeu de démonstration, un CEM complet de 20 divisions.
