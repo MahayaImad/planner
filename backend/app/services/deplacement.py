@@ -259,38 +259,40 @@ def _refus(
 
     # Aucun trou pour les élèves : c'est la règle la plus stricte de la
     # génération, une retouche manuelle ne doit pas la contourner.
-    seances_division = {
-        contexte.index_seance[autre.heure_debut] for autre in du_jour
-        if autre.classe_id == reference.classe_id
-        and autre.heure_debut in contexte.index_seance
-    } | {seance}
-    demi = contexte.demi_de_seance.get(seance)
-    if demi is not None:
-        ouvertes = contexte.ouvertes_demi.get((jour, demi), [])
-        rangs = sorted(i for i, s in enumerate(ouvertes)
-                       if s in seances_division)
-        if len(rangs) >= 2 and rangs[-1] - rangs[0] + 1 != len(rangs):
-            return TROU_ELEVES, {}
-
-    # La journée de départ ne doit pas non plus se retrouver trouée.
-    if jour != reference.jour:
-        restantes = {
+    #
+    # Deux demi-journées sont en jeu, celle de départ et celle
+    # d'arrivée — et elles peuvent appartenir au MÊME jour : déplacer
+    # une heure du matin vers l'après-midi laisse la matinée trouée
+    # derrière elle.
+    def _occupees(jour_vise: str, demi_visee) -> set:
+        """Séances de la division dans cette demi-journée, après coup."""
+        seances_vues = {
             contexte.index_seance[autre.heure_debut]
             for autre in contexte.lecons
             if autre.classe_id == reference.classe_id
-            and autre.jour == reference.jour
+            and autre.jour == jour_vise
             and autre.id not in deplacees
             and autre.heure_debut in contexte.index_seance
         }
-        depart = contexte.index_seance.get(reference.heure_debut)
-        demi_depart = contexte.demi_de_seance.get(depart)
-        if demi_depart is not None:
-            ouvertes = contexte.ouvertes_demi.get(
-                (reference.jour, demi_depart), [])
-            rangs = sorted(i for i, s in enumerate(ouvertes)
-                           if s in restantes)
-            if len(rangs) >= 2 and rangs[-1] - rangs[0] + 1 != len(rangs):
-                return TROU_ELEVES, {}
+        if jour_vise == jour:
+            seances_vues.add(seance)
+        return {s for s in seances_vues
+                if contexte.demi_de_seance.get(s) == demi_visee}
+
+    depart = contexte.index_seance.get(reference.heure_debut)
+    a_verifier = {(jour, contexte.demi_de_seance.get(seance))}
+    if depart is not None:
+        a_verifier.add(
+            (reference.jour, contexte.demi_de_seance.get(depart)))
+
+    for jour_vise, demi_visee in a_verifier:
+        if demi_visee is None:
+            continue
+        ouvertes = contexte.ouvertes_demi.get((jour_vise, demi_visee), [])
+        occupees = _occupees(jour_vise, demi_visee)
+        rangs = sorted(i for i, s in enumerate(ouvertes) if s in occupees)
+        if len(rangs) >= 2 and rangs[-1] - rangs[0] + 1 != len(rangs):
+            return TROU_ELEVES, {}
 
     # Salles : attribuées une par une pour que les deux demi-groupes
     # d'un fouj n'héritent pas de la même.

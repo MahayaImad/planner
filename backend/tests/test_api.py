@@ -524,8 +524,9 @@ def test_classeur_cree_un_etablissement_depuis_le_modele():
     from openpyxl import load_workbook
 
     r = client.post("/auth/inscrire", json={
-        "ecole": {"nom": "CEM vierge", "email": "vierge@test.dz"},
-        "admin": {"nom": "A", "prenom": "B", "email": "vierge-admin@test.dz",
+        "ecole": {"nom": "CEM vierge", "email": "classeur-vierge@test.dz"},
+        "admin": {"nom": "A", "prenom": "B",
+                  "email": "classeur-vierge-admin@test.dz",
                   "mot_de_passe": "motdepasse-solide"}})
     entetes = {"Authorization": f"Bearer {r.json()['access_token']}"}
 
