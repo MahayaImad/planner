@@ -32,7 +32,8 @@ services:
       # En production, retirer DEBUG et fournir une vraie clé :
       #   SECRET_KEY: ${SECRET_KEY:?definir SECRET_KEY dans .env}
       DEBUG: "true"
-      CORS_ORIGINS: http://localhost:5173
+      # L'application Flutter est servie par le service « web ».
+      CORS_ORIGINS: http://localhost:8080
       GENERATIONS_SIMULTANEES: "2"
       SOLVEUR_THREADS: "8"
     ports:
@@ -41,19 +42,25 @@ services:
       - ./backend:/app
     working_dir: /app
 
-  frontend:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-    ports:
-      - "5173:5173"
+  # L'application Flutter, compilée pour le web. La MÊME base de code
+  # produit l'application Android et iOS : il n'y a qu'un frontend à
+  # maintenir.
+  #
+  # CanvasKit et la police sont servis depuis cette image, pas depuis
+  # un CDN : une école mal connectée doit voir la même interface qu'un
+  # bureau en fibre, et l'application démarre sans accès à Internet.
+  web:
+    build:
+      context: ./app
+      args:
+        # Adresse à laquelle le NAVIGATEUR joindra l'API — pas le nom du
+        # service Docker, que le navigateur ne sait pas résoudre.
+        API_BASE: http://localhost:8000
+    restart: unless-stopped
     depends_on:
       - api
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    environment:
-      # Le proxy Vite utilise le nom du service Docker "api", pas localhost
-      VITE_API_TARGET: http://api:8000
+    ports:
+      - "8080:80"
 
 volumes:
   postgres_data:

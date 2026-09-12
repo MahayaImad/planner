@@ -385,5 +385,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "ajouterFenetre": "التصريح بنافذة",
+  "jour": "اليوم",
+  "seancesBloquees": "الحصص الممنوعة",
+  "libelle": "التسمية",
+  "aideLibelleFenetre": "اختياري: «تفتيش العربية»، «اجتماع تنسيق».",
+  "declarezDabordUneMatiere": "صرّح أولًا بمادة."
 }

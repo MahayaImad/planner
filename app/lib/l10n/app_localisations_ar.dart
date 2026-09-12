@@ -841,4 +841,22 @@ class LAr extends L {
   String fenetreDetail(String jour, String seances) {
     return 'اليوم $jour · الحصص $seances';
   }
+
+  @override
+  String get ajouterFenetre => 'التصريح بنافذة';
+
+  @override
+  String get jour => 'اليوم';
+
+  @override
+  String get seancesBloquees => 'الحصص الممنوعة';
+
+  @override
+  String get libelle => 'التسمية';
+
+  @override
+  String get aideLibelleFenetre => 'اختياري: «تفتيش العربية»، «اجتماع تنسيق».';
+
+  @override
+  String get declarezDabordUneMatiere => 'صرّح أولًا بمادة.';
 }

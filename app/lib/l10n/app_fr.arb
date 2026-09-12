@@ -385,5 +385,11 @@
         "type": "String"
       }
     }
-  }
+  },
+  "ajouterFenetre": "Déclarer une fenêtre",
+  "jour": "Jour",
+  "seancesBloquees": "Séances bloquées",
+  "libelle": "Libellé",
+  "aideLibelleFenetre": "Facultatif : « inspection arabe », « réunion de coordination ».",
+  "declarezDabordUneMatiere": "Déclarez d'abord une matière."
 }

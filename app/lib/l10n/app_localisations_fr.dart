@@ -823,4 +823,23 @@ class LFr extends L {
   String fenetreDetail(String jour, String seances) {
     return 'Jour $jour · séances $seances';
   }
+
+  @override
+  String get ajouterFenetre => 'Déclarer une fenêtre';
+
+  @override
+  String get jour => 'Jour';
+
+  @override
+  String get seancesBloquees => 'Séances bloquées';
+
+  @override
+  String get libelle => 'Libellé';
+
+  @override
+  String get aideLibelleFenetre =>
+      'Facultatif : « inspection arabe », « réunion de coordination ».';
+
+  @override
+  String get declarezDabordUneMatiere => 'Déclarez d\'abord une matière.';
 }

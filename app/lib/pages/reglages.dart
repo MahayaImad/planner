@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/api.dart';
-import '../core/ressources.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../l10n/traductions.dart';
@@ -10,13 +9,19 @@ import '../widgets/etats.dart';
 
 final _reglagesProvider = FutureProvider.autoDispose((ref) async {
   final api = ref.watch(apiProvider);
+  // Les matières sont chargées ici, pas au moment d'ouvrir le
+  // formulaire : les lire depuis un provider qui n'a jamais été
+  // observé rend une liste vide, et le formulaire refusait de
+  // s'ouvrir en prétendant qu'aucune matière n'existait.
   final reponses = await Future.wait([
     api.get('/parametres'),
     api.get('/fenetres-pedagogiques'),
+    api.get('/matieres/'),
   ]);
   return (
     parametres: reponses[0] as Map<String, dynamic>,
     fenetres: (reponses[1] as List).cast<Map<String, dynamic>>(),
+    matieres: (reponses[2] as List).cast<Map<String, dynamic>>(),
   );
 });
 
@@ -192,7 +197,11 @@ class _PageReglagesState extends ConsumerState<PageReglages> {
                   onModifier: _toucher,
                 ),
                 _OngletCriteres(poids: _poids, onModifier: _toucher),
-                _OngletFenetres(fenetres: donnees.fenetres),
+                _OngletFenetres(
+                  fenetres: donnees.fenetres,
+                  matieres: donnees.matieres,
+                  grille: _grille,
+                ),
               ],
             ),
           ),
@@ -535,9 +544,15 @@ class _GrilleSeuils extends StatelessWidget {
 }
 
 class _OngletFenetres extends ConsumerWidget {
-  const _OngletFenetres({required this.fenetres});
+  const _OngletFenetres({
+    required this.fenetres,
+    required this.matieres,
+    required this.grille,
+  });
 
   final List<Map<String, dynamic>> fenetres;
+  final List<Map<String, dynamic>> matieres;
+  final Map<String, dynamic> grille;
 
   @override
   Widget build(BuildContext contexte, WidgetRef ref) {
@@ -559,6 +574,15 @@ class _OngletFenetres extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: Jetons.m),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: FilledButton.icon(
+            onPressed: () => _ajouter(contexte, ref),
+            icon: const Icon(Icons.add),
+            label: Text(l.ajouterFenetre),
+          ),
+        ),
         const SizedBox(height: Jetons.l),
         if (fenetres.isEmpty)
           Padding(
@@ -577,7 +601,7 @@ class _OngletFenetres extends ConsumerWidget {
                 leading: const Icon(Icons.block_outlined),
                 title: Text('${fenetre['matiere_nom']}'),
                 subtitle: Text(l.fenetreDetail(
-                    '${fenetre['index_jour']}',
+                    _nomDuJour(grille, fenetre['index_jour'] as int),
                     (fenetre['seances_bloquees'] as List)
                         .map((s) => 'S${(s as int) + 1}')
                         .join(', '))),
@@ -589,11 +613,171 @@ class _OngletFenetres extends ConsumerWidget {
                         .read(apiProvider)
                         .delete('/fenetres-pedagogiques/${fenetre['id']}');
                     ref.invalidate(_reglagesProvider);
-                    ref.invalidate(collectionProvider(ressourceMatieres));
                   },
                 ),
               ),
             ),
+      ],
+    );
+  }
+}
+
+String _nomDuJour(Map<String, dynamic> grille, int index) {
+  final jours = (grille['jours'] as List).cast<String>();
+  return index >= 0 && index < jours.length ? jours[index] : '$index';
+}
+
+extension _CreationFenetre on _OngletFenetres {
+  /// Déclarer une fenêtre : une matière, un jour, les séances bloquées.
+  ///
+  /// Les séances se cochent sur la grille réelle de l'établissement,
+  /// pas sur une liste abstraite : on voit tout de suite qu'on bloque
+  /// bien la matinée.
+  Future<void> _ajouter(BuildContext contexte, WidgetRef ref) async {
+    if (matieres.isEmpty) {
+      ScaffoldMessenger.of(contexte).showSnackBar(
+          SnackBar(content: Text(contexte.l10n.declarezDabordUneMatiere)));
+      return;
+    }
+
+    final jours = (grille['jours'] as List).cast<String>();
+    final horaires = (grille['horaires'] as List).cast<List>();
+    final demande = await showDialog<Map<String, dynamic>>(
+      context: contexte,
+      builder: (_) => _DialogueFenetre(
+        matieres: matieres,
+        jours: jours,
+        horaires: horaires,
+      ),
+    );
+    if (demande == null) return;
+
+    try {
+      await ref
+          .read(apiProvider)
+          .post('/fenetres-pedagogiques', corps: demande);
+      ref.invalidate(_reglagesProvider);
+    } on ErreurApi catch (erreur) {
+      if (contexte.mounted) {
+        ScaffoldMessenger.of(contexte).showSnackBar(SnackBar(
+          backgroundColor: Jetons.danger,
+          content: Text(erreur.reseau
+              ? contexte.l10n.erreurReseau
+              : erreur.message),
+        ));
+      }
+    }
+  }
+}
+
+class _DialogueFenetre extends StatefulWidget {
+  const _DialogueFenetre({
+    required this.matieres,
+    required this.jours,
+    required this.horaires,
+  });
+
+  final List<Map<String, dynamic>> matieres;
+  final List<String> jours;
+  final List<List> horaires;
+
+  @override
+  State<_DialogueFenetre> createState() => _DialogueFenetreState();
+}
+
+class _DialogueFenetreState extends State<_DialogueFenetre> {
+  int? _matiereId;
+  int _jour = 0;
+  final Set<int> _seances = {};
+  final _libelle = TextEditingController();
+
+  @override
+  void dispose() {
+    _libelle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext contexte) {
+    final l = contexte.l10n;
+    return AlertDialog(
+      title: Text(l.ajouterFenetre),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<int>(
+                initialValue: _matiereId,
+                decoration: InputDecoration(labelText: l.matiere),
+                items: [
+                  for (final matiere in widget.matieres)
+                    DropdownMenuItem(
+                        value: matiere['id'] as int,
+                        child: Text('${matiere['nom']}')),
+                ],
+                onChanged: (valeur) => setState(() => _matiereId = valeur),
+              ),
+              const SizedBox(height: Jetons.m),
+              DropdownButtonFormField<int>(
+                initialValue: _jour,
+                decoration: InputDecoration(labelText: l.jour),
+                items: [
+                  for (var i = 0; i < widget.jours.length; i++)
+                    DropdownMenuItem(value: i, child: Text(widget.jours[i])),
+                ],
+                onChanged: (valeur) => setState(() => _jour = valeur ?? 0),
+              ),
+              const SizedBox(height: Jetons.m),
+              Text(l.seancesBloquees,
+                  style: Theme.of(contexte).textTheme.labelLarge),
+              const SizedBox(height: Jetons.xs),
+              Wrap(
+                spacing: Jetons.s,
+                runSpacing: Jetons.s,
+                children: [
+                  for (var i = 0; i < widget.horaires.length; i++)
+                    FilterChip(
+                      label: Text('S${i + 1} · ${widget.horaires[i][0]}'),
+                      selected: _seances.contains(i),
+                      onSelected: (actif) => setState(
+                          () => actif ? _seances.add(i) : _seances.remove(i)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: Jetons.m),
+              TextField(
+                controller: _libelle,
+                decoration: InputDecoration(
+                    labelText: l.libelle, helperText: l.aideLibelleFenetre),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(contexte).pop(),
+          child: Text(l.annuler),
+        ),
+        FilledButton(
+          // Sans matière ni séance, la fenêtre ne voudrait rien dire :
+          // le bouton reste inactif plutôt que de laisser le serveur
+          // refuser après coup.
+          onPressed: _matiereId == null || _seances.isEmpty
+              ? null
+              : () => Navigator.of(contexte).pop({
+                    'matiere_id': _matiereId,
+                    'index_jour': _jour,
+                    'seances_bloquees': _seances.toList()..sort(),
+                    'libelle': _libelle.text.trim().isEmpty
+                        ? null
+                        : _libelle.text.trim(),
+                  }),
+          child: Text(l.enregistrer),
+        ),
       ],
     );
   }

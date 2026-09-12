@@ -1374,6 +1374,42 @@ abstract class L {
   /// In fr, this message translates to:
   /// **'Jour {jour} · séances {seances}'**
   String fenetreDetail(String jour, String seances);
+
+  /// No description provided for @ajouterFenetre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déclarer une fenêtre'**
+  String get ajouterFenetre;
+
+  /// No description provided for @jour.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jour'**
+  String get jour;
+
+  /// No description provided for @seancesBloquees.
+  ///
+  /// In fr, this message translates to:
+  /// **'Séances bloquées'**
+  String get seancesBloquees;
+
+  /// No description provided for @libelle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Libellé'**
+  String get libelle;
+
+  /// No description provided for @aideLibelleFenetre.
+  ///
+  /// In fr, this message translates to:
+  /// **'Facultatif : « inspection arabe », « réunion de coordination ».'**
+  String get aideLibelleFenetre;
+
+  /// No description provided for @declarezDabordUneMatiere.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déclarez d\'abord une matière.'**
+  String get declarezDabordUneMatiere;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
